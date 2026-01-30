@@ -226,6 +226,14 @@ Provide JSON response with these exact fields:
     "detected_department": "department name"
 }}
 
+Priority Level Guide:
+- P1 (2h): Life-threatening, live wires, major water bursts, gas leaks.
+- P2 (4h): Very High. Sewage overflow, large potholes on main roads.
+- P3 (8h): High. Street lights out in high-risk areas, hospital equipment issues.
+- P4-P5 (12-24h): Medium. Missed garbage collection, minor drainage blocks.
+- P6-P7 (48-72h): Standard. Poor maintenance, street cleaning, park lighting.
+- P8-P10 (4-7 days): Low. Future planning, beautification, general inquiries.
+
 Department detection rules:
 - Water/sewage/drainage issues → "Water_Supply_Dept"
 - Road/bridge/infrastructure → "Public_Works_Dept"
@@ -234,7 +242,7 @@ Department detection rules:
 - Hospital/clinic/medical → "Health_Dept"
 - Everything else → "General_Admin_Dept"
 
-Analyze carefully and detect the correct department."""
+Analyze carefully and detect the correct department and priority."""
             
             # Call Gemini REST API
             headers = {'Content-Type': 'application/json'}
@@ -294,7 +302,27 @@ Analyze carefully and detect the correct department."""
     elif any(word in desc_lower for word in ['hospital', 'doctor', 'medical', 'health', 'clinic', 'अस्पताल']):
         detected_dept = 'Health_Dept'
     
-    pri = 5 if any(word in desc_lower for word in ['urgent', 'emergency', 'तुरंत', 'জরুরী', 'அவசர']) else 7
+    pri = 7 # Default standard
+    
+    # Check for explicit Emergency categories
+    if cat in ['Power_Emergency', 'Water_Emergency', 'Safety_Emergency']:
+        pri = 1
+        print(f"🚨 Categorical Emergency Detected: Priority forced to 1")
+    
+    # Critical (P1-P2) keywords (only check if not already forced to P1)
+    if pri > 1:
+        if any(word in desc_lower for word in ['emergency', 'danger', 'hazard', 'death', 'killed', 'safety', 'shock', 'blast', 'live wire', 'transformer', 'manhole', 'gas leak', 'मृत्यु', 'खतरा', 'அபாயம்']):
+            pri = 1
+        elif any(word in desc_lower for word in ['burst', 'overflow', 'pothole', 'accident', 'injury', 'fallen tree', 'flickering', 'dark', 'चोट', 'दुर्घटना']):
+            pri = 2
+    # High (P3-P4)
+    elif any(word in desc_lower for word in ['urgent', 'immediately', 'night', 'hospital', 'medical', 'dog bite', 'stray dog', 'तुरंत', 'உடனடியாக']):
+        pri = 3
+    elif any(word in desc_lower for word in ['block', 'smell', 'dead animal', 'गंध', 'दुर्गंध']):
+        pri = 4
+    # Low (P8-P10)
+    elif any(word in desc_lower for word in ['planning', 'beautification', 'future', 'suggestion', 'योजना', 'सौंदर्यीकरण']):
+        pri = 9
     
     print(f"📊 Keyword Analysis: Priority={pri}, Dept={detected_dept}")
     return {
@@ -307,10 +335,17 @@ Analyze carefully and detect the correct department."""
 def route_complaint(cat):
     ROUTES = {
         'Water_Supply': 'Water_Supply_Dept',
+        'Water_Emergency': 'Water_Supply_Dept',
         'Roads_Infrastructure': 'Public_Works_Dept',
         'Sanitation': 'Sanitation_Dept',
         'Power': 'Power_Dept',
+        'Power_Emergency': 'Power_Dept',
+        'Street_Lights': 'Power_Dept',
         'Health': 'Health_Dept',
+        'Health_Services': 'Health_Dept',
+        'Safety_Emergency': 'General_Admin_Dept',
+        'Animals': 'Sanitation_Dept',
+        'Drainage': 'Water_Supply_Dept'
     }
     return ROUTES.get(cat, 'General_Admin_Dept')
 
@@ -409,9 +444,143 @@ def check_duplicate_complaints(lat, lon, category, radius_meters=20):
         print(f"Error checking duplicates: {e}")
         return []
 
+# ============= OTP \u0026 AUTHENTICATION HELPERS =============
+
+def generate_otp():
+    """Generate a 6-digit OTP"""
+    return str(random.randint(100000, 999999))
+
+def generate_tracking_id():
+    """Generate unique complaint tracking ID"""
+    now = datetime.now()
+    date_part = now.strftime("%Y%m%d")
+    random_part = str(random.randint(1000, 9999))
+    return f"GRV-{date_part}-{random_part}"
+
+def store_otp(phone, otp_code, purpose='signin'):
+    """Store OTP in database with expiration"""
+    try:
+        conn = get_db()
+        created_at = datetime.now().isoformat()
+        expires_at = (datetime.now() + timedelta(minutes=5)).isoformat()
+        
+        conn.execute('''INSERT INTO otps (phone, otp_code, purpose, created_at, expires_at, used)
+                       VALUES (?,?,?,?,?,?)''',
+                    (phone, otp_code, purpose, created_at, expires_at, 0 if is_postgres() else 0))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error storing OTP: {e}")
+        return False
+
+def validate_otp(phone, otp_code):
+    """Validate OTP and mark as used"""
+    try:
+        conn = get_db()
+        now = datetime.now().isoformat()
+        
+        # Find valid, unused OTP
+        otp = conn.execute('''SELECT * FROM otps 
+                             WHERE phone=? AND otp_code=? AND used=? AND expires_at > ?
+                             ORDER BY created_at DESC LIMIT 1''',
+                          (phone, otp_code, 0 if is_postgres() else 0, now)).fetchone()
+        
+        if otp:
+            # Mark as used
+            conn.execute('UPDATE otps SET used=? WHERE id=?', 
+                        (1 if is_postgres() else 1, otp['id']))
+            conn.commit()
+            conn.close()
+            return True
+        
+        conn.close()
+        return False
+    except Exception as e:
+        print(f"Error validating OTP: {e}")
+        return False
+
+def send_otp_email(to_email, otp_code, phone, purpose='signin'):
+    """Send OTP via email"""
+    purpose_text = "Sign In" if purpose == 'signin' else "Sign Up"
+    
+    html_content = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Segoe UI', sans-serif; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; }}
+            .header {{ background: linear-gradient(135deg, #FF9933, #138808); color: white; padding: 25px; text-align: center; }}
+            .content {{ padding: 30px; }}
+            .otp-box {{ background: #f8f9fa; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; 
+                       letter-spacing: 8px; color: #FF9933; border: 2px dashed #FF9933; border-radius: 8px; margin: 20px 0; }}
+            .footer {{ background: #f1f1f1; padding: 15px; text-align: center; font-size: 12px; color: #777; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header"><h1>🔐 Your OTP Code</h1></div>
+            <div class="content">
+                <p>Dear Citizen,</p>
+                <p>Your OTP for <strong>{purpose_text}</strong> to Jan Samadhaan portal is:</p>
+                <div class="otp-box">{otp_code}</div>
+                <p><strong>⏰ Valid for 5 minutes only</strong></p>
+                <p>Mobile Number: {phone}</p>
+                <p>If you didn't request this OTP, please ignore this email.</p>
+            </div>
+            <div class="footer">भारत ई-शिकायत प्रणाली | Bharat E-Grievance</div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return send_email(to_email, f"🔐 Your OTP Code - {otp_code}", html_content)
+
+def get_citizen_by_phone(phone):
+    """Get citizen details by phone number"""
+    try:
+        conn = get_db()
+        citizen = conn.execute('SELECT * FROM citizens WHERE phone=?', (phone,)).fetchone()
+        conn.close()
+        return dict(citizen) if citizen else None
+    except Exception as e:
+        print(f"Error fetching citizen: {e}")
+        return None
+
+def create_citizen(phone, name=None, email=None, address=None):
+    """Create new citizen record"""
+    try:
+        conn = get_db()
+        created_at = datetime.now().isoformat()
+        last_login = created_at
+        
+        conn.execute('''INSERT INTO citizens (phone, name, email, address, created_at, last_login)
+                       VALUES (?,?,?,?,?,?)''',
+                    (phone, name, email, address, created_at, last_login))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error creating citizen: {e}")
+        return False
+
+def update_citizen_login(phone):
+    """Update last login time for citizen"""
+    try:
+        conn = get_db()
+        conn.execute('UPDATE citizens SET last_login=? WHERE phone=?', 
+                    (datetime.now().isoformat(), phone))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error updating login: {e}")
+        return False
+
 # ============= API ROUTES =============
 
 @app.route('/')
+@app.route('/index.html')
 def home():
     return send_from_directory('.', 'index.html')
 
@@ -447,12 +616,209 @@ def translate():
         "to": to_lang
     }), 200
 
+# ============= CITIZEN AUTHENTICATION ENDPOINTS =============
+
+@app.route('/api/citizen/check-exists', methods=['POST'])
+def check_citizen_exists():
+    """Check if citizen exists by phone or email"""
+    try:
+        data = request.json
+        identifier = data.get('phone')
+        
+        if not identifier:
+            return jsonify({"success": False, "message": "Identifier required"}), 400
+            
+        conn = get_db()
+        # Search by phone
+        citizen = conn.execute('SELECT * FROM citizens WHERE phone=?', (identifier,)).fetchone()
+        
+        # If not found and identifier looks like email, search by email
+        if not citizen and '@' in identifier:
+            citizen = conn.execute('SELECT * FROM citizens WHERE email=?', (identifier,)).fetchone()
+            
+        conn.close()
+        
+        if citizen:
+            c = dict(citizen)
+            return jsonify({
+                "success": True,
+                "exists": True,
+                "citizen": {
+                    "phone": c['phone'],
+                    "email": c['email'],
+                    "name": c['name'],
+                    "address": c.get('address', '')
+                }
+            }), 200
+        else:
+            return jsonify({"success": True, "exists": False}), 200
+            
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/citizen/send-otp', methods=['POST'])
+def citizen_send_otp():
+    """Send OTP to citizen's phone (via email)"""
+    try:
+        data = request.json
+        phone = data.get('phone')
+        email = data.get('email')
+        purpose = data.get('purpose', 'signin')
+        
+        if not phone or not email:
+            return jsonify({"success": False, "message": "Phone and email required"}), 400
+        
+        # Generate and store OTP (123456 is mock code for testing)
+        otp_code = "123456" 
+        
+        if not store_otp(phone, otp_code, purpose):
+            return jsonify({"success": False, "message": "Failed to generate OTP"}), 500
+        
+        # Also try to send real email if configured
+        send_otp_email(email, otp_code, phone, purpose)
+        
+        return jsonify({
+            "success": True, 
+            "message": f"Mock OTP 123456 sent to {email}",
+            "expires_in": 300
+        }), 200
+            
+    except Exception as e:
+        print(f"Send OTP error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/citizen/verify-otp', methods=['POST'])
+def citizen_verify_otp():
+    """Verify OTP for sign in"""
+    try:
+        data = request.json
+        phone = data.get('phone')
+        otp_code = data.get('otp')
+        
+        if not phone or not otp_code:
+            return jsonify({"success": False, "message": "Phone and OTP required"}), 400
+        
+        if validate_otp(phone, otp_code):
+            # Check if citizen exists
+            citizen = get_citizen_by_phone(phone)
+            
+            if citizen:
+                # Update last login
+                update_citizen_login(phone)
+                
+                return jsonify({
+                    "success": True,
+                    "message": "OTP verified",
+                    "citizen": {
+                        "phone": citizen['phone'],
+                        "name": citizen['name'],
+                        "email": citizen['email'],
+                        "address": citizen['address']
+                    }
+                }), 200
+            else:
+                # New user - need to complete signup
+                return jsonify({
+                    "success": True,
+                    "message": "OTP verified - complete registration",
+                    "new_user": True
+                }), 200
+        else:
+            return jsonify({"success": False, "message": "Invalid or expired OTP"}), 401
+            
+    except Exception as e:
+        print(f"Verify OTP error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/citizen/signup', methods=['POST'])
+def citizen_signup():
+    """Complete citizen signup after OTP verification"""
+    try:
+        data = request.json
+        phone = data.get('phone')
+        name = data.get('name')
+        email = data.get('email')
+        address = data.get('address')
+        
+        if not phone or not name or not email:
+            return jsonify({"success": False, "message": "Phone, name, and email required"}), 400
+        
+        # Create citizen record
+        if create_citizen(phone, name, email, address):
+            return jsonify({
+                "success": True,
+                "message": "Registration completed successfully",
+                "citizen": {
+                    "phone": phone,
+                    "name": name,
+                    "email": email,
+                    "address": address
+                }
+            }), 200
+        else:
+            return jsonify({"success": False, "message": "User may already exist"}), 400
+            
+    except Exception as e:
+        print(f"Signup error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+# Duplicate removed - using version at line 586
+
+@app.route('/api/citizen/complaints', methods=['POST'])
+def get_citizen_complaints():
+    """Get all complaints for a citizen by phone number"""
+    try:
+        data = request.json
+        phone = data.get('phone')
+        
+        if not phone:
+            return jsonify({"success": False, "message": "Phone required"}), 400
+        
+        conn = get_db()
+        complaints = conn.execute(
+            'SELECT * FROM complaints WHERE citizen_phone=? ORDER BY created_at DESC',
+            (phone,)
+        ).fetchall()
+        conn.close()
+        
+        res = []
+        for r in complaints:
+            d = dict(r)
+            d['escalation_level'] = check_sla_status(d)
+            res.append(d)
+        
+        return jsonify({"success": True, "complaints": res}), 200
+        
+    except Exception as e:
+        print(f"Get complaints error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+# ============= OLD VERIFICATION (DEPRECATED) =============
 @app.route('/api/verify_citizen', methods=['POST'])
 def verify():
+    """Legacy endpoint - now also saves citizen to database"""
     d = request.json
-    if d.get('name') and d.get('email') and d.get('phone'):
-        return jsonify({"success": True}), 200
+    name = d.get('name')
+    email = d.get('email')
+    phone = d.get('phone')
+    
+    if name and email and phone:
+        try:
+            conn = get_db()
+            # Register or update the citizen in our new system table
+            conn.execute('''
+                INSERT OR REPLACE INTO citizens (phone, name, email, created_at, last_login)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (phone, name, email, datetime.now().isoformat(), datetime.now().isoformat()))
+            conn.commit()
+            conn.close()
+            return jsonify({"success": True}), 200
+        except Exception as e:
+            print(f"Verify save error: {e}")
+            return jsonify({"success": True}), 200 # Still return true so frontend continues
+            
     return jsonify({"success": False, "message": "All fields required"}), 400
+
 
 @app.route('/api/check_duplicates', methods=['POST'])
 def check_duplicates():
@@ -519,7 +885,7 @@ def submit():
         
         sla_h = SLA_TIMES.get(pri, 24)
         sla_dl = datetime.now() + timedelta(hours=sla_h)
-        tid = f"GRV{int(time.time())}{random.randint(100,999)}"
+        tid = generate_tracking_id()  # Use new standardized format
         
         media = None
         if 'media_upload' in request.files:
@@ -635,9 +1001,16 @@ def update(cid):
         status = d.get('status')
         summary = d.get('resolution_summary')
         forward_dept = d.get('forward_dept')
+        rejection_reason = d.get('rejection_reason')
+        transferred_by = d.get('transferred_by', 'Official')
+        transfer_reason = d.get('transfer_reason', '')
         
         conn = get_db()
         curr = conn.execute('SELECT * FROM complaints WHERE id=?', (cid,)).fetchone()
+        
+        if not curr:
+            conn.close()
+            return jsonify({"success": False, "message": "Complaint not found"}), 404
         
         upd_q = "UPDATE complaints SET status=?, resolution_summary=?"
         upd_p = [status, summary]
@@ -653,9 +1026,24 @@ def update(cid):
                 upd_q += ", resolution_proof=?"
                 upd_p.append(proof)
 
+        # Handle department transfer
         if status == 'Forwarded' and forward_dept:
-            upd_q += ", department=?, assigned_to=?"
-            upd_p.extend([forward_dept, f"{forward_dept}_Manager"])
+            old_dept = curr['department']
+            upd_q += ", department=?, assigned_to=?, transfer_count=?"
+            upd_p.extend([forward_dept, f"{forward_dept}_Manager", 
+                         (curr['transfer_count'] or 0) + 1])
+            
+            # Log transfer history
+            conn.execute('''INSERT INTO complaint_transfers 
+                           (complaint_id, from_department, to_department, transferred_by, transfer_reason, transferred_at)
+                           VALUES (?,?,?,?,?,?)''',
+                        (cid, old_dept, forward_dept, transferred_by, transfer_reason, 
+                         datetime.now().isoformat()))
+
+        # Handle rejection
+        if status == 'Rejected' and rejection_reason:
+            upd_q += ", rejection_reason=?"
+            upd_p.append(rejection_reason)
 
         if status == 'Resolved':
             upd_q += ", resolved_at=?"
@@ -667,9 +1055,25 @@ def update(cid):
         conn.execute(upd_q, upd_p)
         conn.commit()
         conn.close()
-        return jsonify({"success": True}), 200
+        return jsonify({"success": True, "message": f"Complaint {status}"}), 200
     except Exception as e:
         print(e)
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route('/api/complaint/<cid>/transfers', methods=['GET'])
+def get_transfer_history(cid):
+    """Get transfer history for a complaint"""
+    try:
+        conn = get_db()
+        transfers = conn.execute('''SELECT * FROM complaint_transfers 
+                                   WHERE complaint_id=? 
+                                   ORDER BY transferred_at DESC''', (cid,)).fetchall()
+        conn.close()
+        
+        res = [dict(t) for t in transfers]
+        return jsonify({"success": True, "transfers": res}), 200
+    except Exception as e:
+        print(f"Transfer history error: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/complaint/<cid>/feedback', methods=['POST'])
@@ -775,4 +1179,4 @@ if __name__ == '__main__':
     print("="*60)
     # Use PORT from environment for Render compatibility
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=True)

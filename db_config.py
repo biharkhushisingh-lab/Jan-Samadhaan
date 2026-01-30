@@ -57,7 +57,7 @@ def init_db():
     cursor = conn.cursor()
     
     try:
-        # Complaints table
+        # Complaints table (with new fields)
         cursor.execute('''CREATE TABLE IF NOT EXISTS complaints (
             id TEXT PRIMARY KEY,
             citizen_name TEXT,
@@ -85,7 +85,66 @@ def init_db():
             ai_analysis TEXT,
             citizen_language TEXT DEFAULT 'en',
             description_original TEXT,
-            description_translated TEXT
+            description_translated TEXT,
+            rejection_reason TEXT,
+            transfer_count INTEGER DEFAULT 0
+        )''')
+        
+        # Citizens table (new)
+        cursor.execute('''CREATE TABLE IF NOT EXISTS citizens (
+            id SERIAL PRIMARY KEY,
+            phone TEXT UNIQUE NOT NULL,
+            name TEXT,
+            email TEXT,
+            address TEXT,
+            created_at TEXT,
+            last_login TEXT
+        )''' if is_postgres() else '''CREATE TABLE IF NOT EXISTS citizens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            phone TEXT UNIQUE NOT NULL,
+            name TEXT,
+            email TEXT,
+            address TEXT,
+            created_at TEXT,
+            last_login TEXT
+        )''')
+        
+        # OTPs table (new)
+        cursor.execute('''CREATE TABLE IF NOT EXISTS otps (
+            id SERIAL PRIMARY KEY,
+            phone TEXT NOT NULL,
+            otp_code TEXT NOT NULL,
+            purpose TEXT,
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            used BOOLEAN DEFAULT false
+        )''' if is_postgres() else '''CREATE TABLE IF NOT EXISTS otps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            phone TEXT NOT NULL,
+            otp_code TEXT NOT NULL,
+            purpose TEXT,
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            used INTEGER DEFAULT 0
+        )''')
+        
+        # Complaint transfers table (new)
+        cursor.execute('''CREATE TABLE IF NOT EXISTS complaint_transfers (
+            id SERIAL PRIMARY KEY,
+            complaint_id TEXT NOT NULL,
+            from_department TEXT,
+            to_department TEXT NOT NULL,
+            transferred_by TEXT,
+            transfer_reason TEXT,
+            transferred_at TEXT NOT NULL
+        )''' if is_postgres() else '''CREATE TABLE IF NOT EXISTS complaint_transfers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            complaint_id TEXT NOT NULL,
+            from_department TEXT,
+            to_department TEXT NOT NULL,
+            transferred_by TEXT,
+            transfer_reason TEXT,
+            transferred_at TEXT NOT NULL
         )''')
         
         # Officials table
@@ -110,6 +169,17 @@ def init_db():
             phone TEXT,
             preferred_language TEXT DEFAULT 'en'
         )''')
+        
+        # Try to add new columns to existing complaints table (for migration)
+        try:
+            cursor.execute("ALTER TABLE complaints ADD COLUMN rejection_reason TEXT")
+        except:
+            pass  # Column already exists
+        
+        try:
+            cursor.execute("ALTER TABLE complaints ADD COLUMN transfer_count INTEGER DEFAULT 0")
+        except:
+            pass  # Column already exists
         
         conn.commit()
         print(f"✅ Database initialized ({'PostgreSQL' if is_postgres() else 'SQLite'})")

@@ -7,10 +7,10 @@
     <title>🤖 AI-Powered E-Grievance Platform</title>
 
     <!-- Google Maps API -->
-    <!-- IMPORTANT: Replace YOUR_GOOGLE_MAPS_API_KEY with your actual API key -->
-    <!-- Get your key from: https://console.cloud.google.com/google/maps-apis -->
+    <!-- NOTE: Secure this key by adding HTTP Referrer restrictions in Google Cloud Console -->
+    <!-- Restrict to: http://localhost:5000/*, https://your-app.onrender.com/* -->
     <script
-        src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places&callback=initMap"></script>
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao&libraries=places&callback=initMap"></script>
 
     <style>
         * {
@@ -504,10 +504,17 @@
             color: #856404;
         }
 
+        .status-rejected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
         .status-critical {
             background: #f8d7da;
             color: #721c24;
             animation: blink 1s infinite;
+            border: 1px solid #f5c6cb;
         }
 
         @keyframes blink {
@@ -800,7 +807,24 @@
                 <h3>👤 Citizen Portal</h3>
                 <p>File complaints with AI-powered priority assignment, real-time SLA tracking, intelligent department
                     routing, and multilingual support.</p>
-                <button class="role-button">CITIZEN LOGIN →</button>
+                <button class="role-button">NEW CITIZEN →</button>
+
+                <!-- CITIZEN LOGIN Button (for existing users) -->
+                <button onclick="authModule.showAuthModal('signin')" style="
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 30px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+            font-size: 16px;
+            margin-top: 15px;
+            transition: all 0.3s;
+        " onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">
+                    CITIZEN LOGIN →
+                </button>
             </div>
 
             <div class="role-card" onclick="window.location.href='official.html'">
@@ -869,6 +893,9 @@
             </div>
 
             <button type="button" id="verify-continue-btn" onclick="checkHistoryAndContinue()">Continue →</button>
+            <button type="button" onclick="returnToLoginPage()"
+                style="background:none; border:none; color:#666; text-decoration: underline; margin-top:15px; cursor:pointer; width:100%; font-size: 0.9rem;">🏠
+                Return to Home Page</button>
         </form>
 
         <form id="complaint-submission" class="step-form">
@@ -901,30 +928,34 @@
 
             <label for="category">Category: <span style="color: #667eea; font-size: 0.9rem;">(Optional - AI will detect
                     if not selected)</span></label>
-            <select id="category">
+            <select id="category" onchange="updateQuickTags()">
                 <option value="">-- Select Category --</option>
-                <option value="Roads_Infrastructure">🛣️ Road Maintenance</option>
-                <option value="Water_Supply">💧 Water Supply</option>
-                <option value="Sanitation">🗑️ Sanitation</option>
-                <option value="Public_Safety">🚨 Public Safety</option>
-                <option value="Illegal_Construction">🏗️ Illegal Construction</option>
-                <option value="Public_Transport">🚌 Public Transport</option>
-                <option value="Health_Services">🏥 Health Services</option>
-                <option value="Education">🎓 Education Facilities</option>
-                <option value="Noise_Pollution">🔊 Noise/Pollution</option>
-                <option value="Power">⚡ Electricity</option>
-                <option value="Drainage">🚰 Drainage/Sewerage</option>
+                <option value="Power_Emergency">🚨 Live Wire / Transformer Blast</option>
+                <option value="Water_Emergency">🚨 Main Pipe Burst / Contamination</option>
+                <option value="Safety_Emergency">🚨 Open Manhole / Gas Leak / Danger</option>
+                <option value="Power">⚡ Electricity (Bill/Faults)</option>
+                <option value="Water_Supply">💧 Water Supply issues</option>
+                <option value="Sanitation">🗑️ Garbage & Sanitation</option>
+                <option value="Roads_Infrastructure">🛣️ Road & Potholes</option>
+                <option value="Street_Lights">💡 Street Light Faults</option>
+                <option value="Drainage">🚰 Drainage & Sewerage</option>
+                <option value="Public_Safety">🚨 General Public Safety</option>
+                <option value="Animals">🐕 Stray Dog/Animal Menace</option>
+                <option value="Health_Services">🏥 Hospital & Medical</option>
                 <option value="Parks">🌳 Parks & Public Areas</option>
+                <option value="Noise_Pollution">🔊 Noise & Pollution</option>
+                <option value="Traffic">🚦 Traffic & Parking</option>
                 <option value="Documents">📄 Document Delays</option>
                 <option value="Misconduct">⚖️ Official Misconduct</option>
-                <option value="Animals">🐕 Stray Animals</option>
-                <option value="Trees">🌲 Illegal Tree Cutting</option>
-                <option value="Traffic">🚦 Traffic Management</option>
-                <option value="Taxes">💰 Tax Issues</option>
-                <option value="Social_Welfare">🤝 Social Welfare</option>
-                <option value="Cyber">💻 Cyber/IT Issues</option>
-                <option value="Other">📋 Other</option>
+                <option value="Other">📋 Other Issues</option>
             </select>
+
+            <div id="quick-tags-container" class="quick-tags">
+                <!-- Tags populated by JS -->
+            </div>
+
+            <p id="quick-hint" style="font-size: 0.85rem; color: #666; margin-top: -10px; display: none;">✨ Pro-tip:
+                Click a tag above to automatically fill the description with critical details.</p>
 
             <label for="description" class="mandatory">Detailed Description:</label>
             <div class="voice-info-box" style="margin-top: 15px;">
@@ -968,6 +999,9 @@
 
             <button type="button" id="submit-btn" onclick="submitComplaint()" style="margin-top: 30px;">🤖 Submit with
                 AI Analysis</button>
+            <button type="button" onclick="returnToLoginPage()"
+                style="background:none; border:none; color:#666; text-decoration: underline; margin-top:15px; cursor:pointer; width:100%; font-size: 0.9rem;">🏠
+                Return to Home Page</button>
         </form>
 
         <div id="citizen-dashboard" class="step-form">
@@ -1050,6 +1084,25 @@
         </div>
     </div>
 
+    <!-- Reason Modal -->
+    <div id="reason-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeReason()">&times;</span>
+            <h3 style="color: #dc3545; display: flex; align-items: center; gap: 10px;">
+                <span>❌ Complaint Rejected</span>
+            </h3>
+            <p>Tracking ID: <strong id="reason-complaint-id"></strong></p>
+            <div
+                style="background: #fff5f5; padding: 20px; border-radius: 10px; border-left: 4px solid #dc3545; margin: 20px 0;">
+                <h4 style="margin-top: 0; color: #c0392b;">Officer's Reason:</h4>
+                <p id="rejection-reason-text"
+                    style="font-size: 1.1rem; line-height: 1.5; color: #333; white-space: pre-wrap;"></p>
+            </div>
+            <button onclick="closeReason()"
+                style="width: 100%; margin-top: 10px; background: #6c757d; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer;">Close</button>
+        </div>
+    </div>
+
 
 
     <script>
@@ -1073,6 +1126,57 @@
         // Store the generated OTPs for verification
         let phoneOtp = null;
         let emailOtp = null;
+
+        function saveSession(step) {
+            const session = {
+                userName,
+                userPhone,
+                userEmail,
+                idVerified,
+                phoneOtpVerified,
+                emailOtpVerified,
+                currentStep: step
+            };
+            localStorage.setItem('citizen_session', JSON.stringify(session));
+        }
+
+        function clearSession() {
+            localStorage.removeItem('citizen_session');
+            localStorage.removeItem('citizenData'); // Clear citizenData as well
+        }
+
+        function checkSession() {
+            const saved = localStorage.getItem('citizen_session');
+            if (saved) {
+                try {
+                    const session = JSON.parse(saved);
+                    userName = session.userName;
+                    userPhone = session.userPhone;
+                    userEmail = session.userEmail;
+                    idVerified = session.idVerified;
+                    phoneOtpVerified = session.phoneOtpVerified;
+                    emailOtpVerified = session.emailOtpVerified;
+
+                    if (userPhone) {
+                        // Restore header greeting if dashboard
+                        const greeting = document.getElementById('dashboard-greeting');
+                        if (greeting) greeting.textContent = `Welcome, ${userName}`;
+
+                        showStep(session.currentStep || 'citizen-dashboard', false);
+                        if (session.currentStep === 'citizen-dashboard') {
+                            loadComplaints();
+                        }
+                    }
+                } catch (e) {
+                    console.error('Session restore error:', e);
+                    clearSession();
+                }
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            checkSession();
+        });
 
         function changeLanguage() {
             selectedLanguage = document.getElementById('language-select').value;
@@ -1326,7 +1430,7 @@
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
                     map.setCenter({ lat: lat, lng: lon });
-                    map.setZoom(16);
+                    map.setZoom(13);
                     selectLocation(lat, lon);
                     btn.disabled = false;
                     btn.textContent = '📍 Use My Current Location';
@@ -1435,7 +1539,7 @@
             btn.textContent = '🔍 Search Address';
         }
 
-        function showStep(formId) {
+        function showStep(formId, shouldSave = true) {
             document.querySelectorAll('.step-form').forEach(f => f.classList.remove('active'));
             document.getElementById(formId).classList.add('active');
 
@@ -1455,13 +1559,19 @@
             document.querySelectorAll('.progress-step').forEach((s, i) => {
                 s.classList.toggle('active', i < steps[formId]);
             });
+
+            if (shouldSave) saveSession(formId);
         }
 
         function returnToLoginPage() {
             // Confirm before returning to login
-            const confirmed = confirm('🔄 Return to Login Page?\n\nThis will clear your current session. You can login as a new citizen or access the official portal.\n\nClick OK to continue.');
+            const confirmed = confirm('🔄 Return to Home Page?\n\nThis will clear your current session.\n\nClick OK to continue.');
 
             if (confirmed) {
+                // Show landing page
+                document.getElementById('role-selection').style.display = 'flex';
+                document.getElementById('progress-bar').style.display = 'none';
+                document.querySelectorAll('.step-form').forEach(f => f.classList.remove('active'));
                 // Clear all user data
                 userName = '';
                 userPhone = '';
@@ -1479,6 +1589,9 @@
                     marker.setMap(null);
                     marker = null;
                 }
+                document.getElementById('selected-location').textContent = 'No location selected yet';
+                document.getElementById('selected-location').style.color = '#667eea';
+
 
                 // Clear all forms
                 document.getElementById('citizen-verification').reset();
@@ -1510,6 +1623,7 @@
                 window.scrollTo({ top: 0, behavior: 'smooth' });
 
                 console.log('✅ Returned to login page - all data cleared');
+                clearSession();
             }
         }
 
@@ -1620,6 +1734,92 @@
             }
         }
 
+        const QUICK_ISSUES = {
+            'Safety_Emergency': [
+                { label: 'Open Manhole 🕳️', text: 'DEEP OPEN MANHOLE on road/path. Fatal Accident Risk! URGENT!', priority: 'high' },
+                { label: 'Gas Leak ⛽', text: 'Strong smell of Gas transition/leakage in area. FIRE HAZARD!', priority: 'high' },
+                { label: 'Fallen Tree 🌲', text: 'Large Tree fallen across main road, blocking all traffic.', priority: 'high' }
+            ],
+            'Street_Lights': [
+                { label: 'Entire Street Dark 🌑', text: 'All street lights in this stretch are non-functional. Safety risk at night.', priority: 'high' },
+                { label: 'Flickering Lamp 💡', text: 'Single street light flickering or dim, causing nuisance.', priority: 'medium' }
+            ],
+            'Animals': [
+                { label: 'Stray Dog Bite 🐕', text: 'Aggressive stray dogs in area, recently bit someone. Danger to kids!', priority: 'high' },
+                { label: 'Cattle on Road 🐄', text: 'Stray cattle causing traffic accidents on main road.', priority: 'medium' }
+            ],
+            'Power': [
+                { label: 'Live Wire ⚡', text: 'Hazardous Live Wire / Open Cable in public area. EMERGENCY!', priority: 'high' },
+                { label: 'Transformer Blast 🔥', text: 'Local transformer exploded or caught fire. DANGER!', priority: 'high' },
+                { label: 'Complete Blackout 🌑', text: 'Entire area has No Electricity for several hours.', priority: 'medium' },
+                { label: 'Voltage Fluctuations 🔌', text: 'Unstable voltage damaging appliances.', priority: 'medium' }
+            ],
+            'Water_Supply': [
+                { label: 'Main Pipe Burst 🌊', text: 'Major Water Pipeline Burst flooding the street. URGENT!', priority: 'high' },
+                { label: 'Contaminated Water 🤢', text: 'Smelly/Dirty water coming from taps. Health hazard!', priority: 'high' },
+                { label: 'Low Pressure 💧', text: 'Water pressure very low, unable to fill tanks.', priority: 'medium' },
+                { label: 'No Water Supply 🚱', text: 'No water supply for more than 24 hours.', priority: 'medium' }
+            ],
+            'Roads_Infrastructure': [
+                { label: 'Massive Pothole ⚠️', text: 'Very large/deep pothole causing accidents. Dangerous!', priority: 'high' },
+                { label: 'Bridge Crack 🌉', text: 'Visible structural cracks on bridge/flyover. Danger!', priority: 'high' },
+                { label: 'Waterlogging 🛶', text: 'Severe waterlogging on main road. Traffic blocked.', priority: 'medium' },
+                { label: 'Damaged Divider 🚧', text: 'Broken road divider causing safety risk.', priority: 'medium' }
+            ],
+            'Sanitation': [
+                { label: 'Dead Animal 🐕', text: 'Carcass of animal lying for days. Severe smell/infection.', priority: 'high' },
+                { label: 'Garbage Heap 🗑️', text: 'Huge pile of garbage not cleared for a week.', priority: 'medium' },
+                { label: 'Toxic Waste ☢️', text: 'Chemical or medical waste dumped in public area.', priority: 'high' }
+            ],
+            'Drainage': [
+                { label: 'Overflowing Sewer 🚽', text: 'Open drain/sewer overflowing into houses/street.', priority: 'high' },
+                { label: 'Open Manhole 🕳️', text: 'Manhole cover missing on footpath/road. DANGER!', priority: 'high' }
+            ],
+            'Public_Safety': [
+                { label: 'Fire Hazard 🔥', text: 'Immediate Fire Hazard or highly inflammable material.', priority: 'high' },
+                { label: 'Illegal Encroachment 🏗️', text: 'Public space or footpath blocked by illegal structures.', priority: 'medium' }
+            ],
+            'Health_Services': [
+                { label: 'Ambulance Delay 🚑', text: 'Emergency Ambulance not reachable or delayed.', priority: 'high' },
+                { label: 'Medical Shortage 💊', text: 'Critical shortage of life-saving medicines in Govt hospital.', priority: 'high' }
+            ]
+        };
+
+        function updateQuickTags() {
+            const cat = document.getElementById('category').value;
+            const container = document.getElementById('quick-tags-container');
+            const hint = document.getElementById('quick-hint');
+            container.innerHTML = '';
+
+            // Handle Emergency redirects/shorthands
+            const redirectMap = {
+                'Power_Emergency': 'Power',
+                'Water_Emergency': 'Water_Supply',
+                'Safety_Emergency': 'Safety_Emergency',
+                'Street_Lights': 'Street_Lights',
+                'Animals': 'Animals'
+            };
+
+            const dataKey = redirectMap[cat] || cat;
+
+            if (QUICK_ISSUES[dataKey]) {
+                hint.style.display = 'block';
+                QUICK_ISSUES[dataKey].forEach(issue => {
+                    const tag = document.createElement('div');
+                    tag.className = `issue-tag ${issue.priority === 'high' ? 'high-priority' : ''}`;
+                    tag.innerHTML = `<span>${issue.label}</span>`;
+                    tag.onclick = () => {
+                        const desc = document.getElementById('description');
+                        desc.value = issue.text;
+                        // Add a subtle flash effect to the textarea
+                        desc.style.borderColor = '#667eea';
+                        setTimeout(() => desc.style.borderColor = '#e2e8f0', 500);
+                    };
+                    container.appendChild(tag);
+                });
+            }
+        }
+
         async function submitComplaint() {
             if (!selectedLat || !selectedLon) {
                 alert('⚠️ Please select a location on the map');
@@ -1721,6 +1921,7 @@
 
                 if (data.success) {
                     const mine = data.complaints.filter(c => c.citizen_phone === userPhone);
+                    window.citizenComplaints = mine; // Store globally for safe access
                     tbody.innerHTML = '';
 
                     if (mine.length === 0) {
@@ -1732,16 +1933,19 @@
 
                     mine.forEach(c => {
                         const row = tbody.insertRow();
-                        const statusClass = c.status.includes('Resolved') ? 'status-resolved' :
-                            c.escalation_level === 'CRITICAL' ? 'status-critical' : 'status-pending';
+                        const statusClass = c.status.toLowerCase().includes('resolved') ? 'status-resolved' :
+                            c.status.toLowerCase().includes('rejected') ? 'status-rejected' :
+                                c.escalation_level === 'CRITICAL' ? 'status-critical' : 'status-pending';
                         const priClass = c.priority <= 3 ? 'p-high' : c.priority <= 7 ? 'p-medium' : 'p-low';
 
                         let actionBtn = '';
-                        if (c.status.includes('Resolved') && !c.citizen_feedback_rating) {
+                        if (c.status.toLowerCase().includes('resolved') && !c.citizen_feedback_rating) {
                             actionBtn = `<button onclick="openFeedback('${c.id}')" style="padding: 6px 12px; font-size: 0.85rem;">⭐ Rate</button>`;
                         } else if (c.citizen_feedback_rating) {
                             actionBtn = `<span style="color: #28a745;">✅ Rated ${c.citizen_feedback_rating}/5</span>`;
-                        } else if (!c.status.includes('Resolved')) {
+                        } else if (c.status.toLowerCase().includes('rejected')) {
+                            actionBtn = `<button onclick="showRejectionReason('${c.id}')" style="padding: 6px 12px; font-size: 0.85rem; background:#dc3545;">⚠️ Reason</button>`;
+                        } else if (!c.status.toLowerCase().includes('resolved')) {
                             actionBtn = `<span style="color: #999; font-size:0.8rem;">Processing</span>`;
                         }
 
@@ -1771,6 +1975,19 @@
 
         function closeFeedback() {
             document.getElementById('feedback-modal').style.display = 'none';
+        }
+
+        function showRejectionReason(id) {
+            const complaint = window.citizenComplaints.find(c => c.id === id);
+            const reason = (complaint && complaint.rejection_reason) ? complaint.rejection_reason : 'No specific reason provided by officer.';
+
+            document.getElementById('reason-complaint-id').textContent = id;
+            document.getElementById('rejection-reason-text').textContent = reason;
+            document.getElementById('reason-modal').style.display = 'block';
+        }
+
+        function closeReason() {
+            document.getElementById('reason-modal').style.display = 'none';
         }
 
         document.querySelectorAll('.star').forEach(star => {
@@ -1983,7 +2200,7 @@
                 gu: 'જન સમાધાન',
                 kn: 'ಜನ ಸಮಾಧಾನ್',
                 ml: 'ജൻ സമാധാൻ',
-                pa: 'ਜਨ ਸਮਾਧਾਨ',
+                pa: 'ਭਾਰਤ ਈ-ਸ਼ਿਕਾਇਤ ਪ੍ਰਣਾਲੀ',
                 or: 'ଜନ ସମାଧାନ',
                 as: 'জন সমাধান',
                 ur: 'جن سمادھان'
@@ -1997,7 +2214,7 @@
                 en: {
                     cp: '👤 Citizen Portal',
                     cd: 'File complaints with AI-powered priority assignment, real-time SLA tracking, intelligent department routing, and multilingual support.',
-                    cb: 'CITIZEN LOGIN →',
+                    cb: 'NEW CITIZEN →',
                     op: '🏛️ Official Dashboard',
                     od: 'Access AI-analyzed complaints with map visualization, auto-translation, escalation alerts, and performance analytics.',
                     ob: 'OFFICIAL LOGIN →'
@@ -2125,6 +2342,447 @@
         };
     </script>
     </script>
+
+    <!-- 🔐 CITIZEN AUTHENTICATION MODULE -->
+    <script>
+        // ============================================
+        // 🔐 CITIZEN AUTHENTICATION MODULE
+        // Handles Sign In/Sign Up with OTP verification
+        // ============================================
+
+        class CitizenAuth {
+            constructor() {
+                this.currentPhone = null;
+                this.currentEmail = null;
+                this.otpSent = false;
+                this.citizenData = null;
+            }
+
+            // Show authentication modal
+            showAuthModal(mode = 'signin') {
+                this.mode = mode;
+
+                // HIDE BACKGROUND
+                const roleSelection = document.getElementById('role-selection');
+                if (roleSelection) roleSelection.style.opacity = '0';
+
+                const modal = this.createAuthModal(mode);
+                document.body.appendChild(modal);
+                modal.style.display = 'flex';
+
+                // Set initial UI state based on mode
+                setTimeout(() => {
+                    const emailGroup = document.getElementById('emailGroup');
+                    const phoneLabel = document.getElementById('phoneLabel');
+                    const authPhone = document.getElementById('authPhone');
+
+                    if (mode === 'signin') {
+                        // CITIZEN LOGIN - hide email field
+                        if (emailGroup) emailGroup.style.display = 'none';
+                        if (phoneLabel) phoneLabel.textContent = '📱 Phone Number or Email';
+                        if (authPhone) {
+                            authPhone.placeholder = 'Enter your phone or email';
+                            authPhone.removeAttribute('maxlength');
+                        }
+                    } else {
+                        // SIGNUP - show both fields
+                        if (emailGroup) emailGroup.style.display = 'block';
+                        if (phoneLabel) phoneLabel.textContent = '📱 Mobile Number';
+                        if (authPhone) {
+                            authPhone.placeholder = 'Enter 10-digit mobile';
+                            authPhone.setAttribute('maxlength', '10');
+                        }
+                    }
+                }, 10);
+            }
+
+            // Create authentication modal UI
+            createAuthModal(mode) {
+                const modal = document.createElement('div');
+                modal.id = 'authModal';
+                modal.innerHTML = `
+            <style>
+                #authModal {
+                    display: none;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(10, 10, 30, 0.95);
+                    z-index: 10000;
+                    justify-content: center;
+                    align-items: center;
+                    backdrop-filter: blur(10px);
+                }
+                .auth-container {
+                    background: white;
+                    border-radius: 20px;
+                    padding: 40px;
+                    max-width: 450px;
+                    width: 90%;
+                    box-shadow: 0 25px 70px rgba(0,0,0,0.5);
+                    position: relative;
+                    animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                }
+                @keyframes modalPop {
+                    from { transform: scale(0.8); opacity: 0; }
+                    to { transform: scale(1); opacity: 1; }
+                }
+                .auth-header {
+                    text-align: center;
+                    margin-bottom: 30px;
+                }
+                .auth-header h2 {
+                    color: #1a1a1a;
+                    margin-bottom: 5px;
+                    font-size: 1.8rem;
+                }
+                .auth-form-group {
+                    margin-bottom: 20px;
+                }
+                .auth-form-group label {
+                    display: block;
+                    margin-bottom: 8px;
+                    font-weight: 700;
+                    color: #4b5563;
+                }
+                .auth-form-group input {
+                    width: 100%;
+                    padding: 14px;
+                    border: 2px solid #e5e7eb;
+                    border-radius: 12px;
+                    font-size: 16px;
+                    transition: all 0.3s;
+                }
+                .auth-form-group input:focus {
+                    outline: none;
+                    border-color: #6366f1;
+                    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+                }
+                .auth-btn {
+                    width: 100%;
+                    padding: 16px;
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    color: white;
+                    border: none;
+                    border-radius: 12px;
+                    font-size: 1.1rem;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                    box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);
+                }
+                .auth-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 15px 30px rgba(99, 102, 241, 0.4);
+                }
+                .auth-message {
+                    padding: 14px;
+                    border-radius: 12px;
+                    margin-bottom: 25px;
+                    text-align: center;
+                    font-weight: 600;
+                    display: none;
+                }
+                .priority-badge.p-high { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+        .priority-badge.p-medium { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+        .priority-badge.p-low { background: #ecfdf5; color: #059669; border: 1px solid #d1fae5; }
+
+        .quick-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+            min-height: 40px;
+        }
+
+        .issue-tag {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .issue-tag:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .issue-tag.high-priority {
+            border-color: #fecaca;
+            color: #b91c1c;
+        }
+
+        .issue-tag.high-priority:hover {
+            background: #dc3545;
+            border-color: #dc3545;
+        }
+
+        @media (max-width: 768px) {
+                    .auth-container {
+                        width: 95%;
+                        padding: 25px;
+                    }
+                    .auth-close {
+                        top: 15px;
+                        right: 15px;
+                        font-size: 28px;
+                    }
+                }
+                .auth-message.success { background: #ecfdf5; color: #065f46; border: 1px solid #10b981; }
+                .auth-message.error { background: #fef2f2; color: #991b1b; border: 1px solid #ef4444; }
+                .auth-close {
+                    position: absolute;
+                    top: 20px;
+                    right: 20px;
+                    font-size: 32px;
+                    cursor: pointer;
+                    color: #9ca3af;
+                    line-height: 1;
+                    transition: color 0.3s;
+                }
+                .auth-close:hover { color: #111827; }
+                #otpSection { display: none; }
+                .otp-timer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 0.9rem; }
+            </style>
+            <div class="auth-container">
+                <span class="auth-close" onclick="authModule.closeModal()">×</span>
+                <div class="auth-header">
+                    <h2>🔐 Citizen Login</h2>
+                    <p style="color: #6b7280;">Secure access with OTP</p>
+                </div>
+                
+                <div id="authMessage"></div>
+
+                <!-- Phone & Email Section -->
+                <div id="phoneSection">
+                    <div class="auth-form-group">
+                        <label id="phoneLabel">📱 Mobile Number</label>
+                        <input type="tel" id="authPhone" placeholder="Enter phone or email">
+                    </div>
+                    <button class="auth-btn" onclick="authModule.sendOTP()">Send OTP</button>
+                    <p style="text-align:center; margin-top:15px; color:#6b7280; font-size:0.85rem;">
+                        New here? Close this and click <b>NEW CITIZEN</b>
+                    </p>
+                </div>
+
+                <!-- OTP Verification Section -->
+                <div id="otpSection">
+                    <div class="auth-form-group">
+                        <label>🔢 Enter 6-Digit OTP</label>
+                        <input type="text" id="authOTP" placeholder="Enter OTP (Mock: 123456)" maxlength="6">
+                    </div>
+                    <button class="auth-btn" onclick="authModule.verifyOTP()">Verify & Login</button>
+                    <div class="otp-timer">
+                        OTP expires in <span id="otpTimer">5:00</span>
+                    </div>
+                </div>
+            </div>
+        `;
+                return modal;
+            }
+
+            closeModal() {
+                const modal = document.getElementById('authModal');
+                if (modal) modal.remove();
+                const roleSelection = document.getElementById('role-selection');
+                if (roleSelection) roleSelection.style.opacity = '1';
+            }
+
+            // Send OTP
+            async sendOTP() {
+                const phone = document.getElementById('authPhone').value.trim();
+
+                if (!phone) {
+                    this.showMessage('Please enter your phone number or email', 'error');
+                    return;
+                }
+
+                try {
+                    this.showMessage('Checking account...', 'success');
+
+                    // Check if citizen exists
+                    const checkResponse = await fetch('/api/citizen/check-exists', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ phone: phone })
+                    });
+
+                    const checkData = await checkResponse.json();
+
+                    if (checkData.success && checkData.exists) {
+                        this.currentPhone = checkData.citizen.phone;
+                        this.currentEmail = checkData.citizen.email;
+
+                        this.showMessage('Sending OTP to ' + this.currentEmail + '...', 'success');
+
+                        const response = await fetch('/api/citizen/send-otp', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                phone: this.currentPhone,
+                                email: this.currentEmail,
+                                purpose: 'signin'
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            this.showMessage('✅ OTP Sent! (Use 123456 for testing)', 'success');
+                            document.getElementById('phoneSection').style.display = 'none';
+                            document.getElementById('otpSection').style.display = 'block';
+                            this.startOTPTimer();
+                        } else {
+                            this.showMessage('❌ ' + data.message, 'error');
+                        }
+                    } else {
+                        this.showMessage('❌ Account not found. Please register as NEW CITIZEN.', 'error');
+                    }
+                } catch (error) {
+                    this.showMessage('❌ Error. Please try again.', 'error');
+                }
+            }
+
+            // Verify OTP
+            async verifyOTP() {
+                const otp = document.getElementById('authOTP').value.trim();
+
+                if (!otp || otp.length !== 6) {
+                    this.showMessage('Please enter a 6-digit OTP', 'error');
+                    return;
+                }
+
+                try {
+                    this.showMessage('Verifying...', 'success');
+                    const response = await fetch('/api/citizen/verify-otp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            phone: this.currentPhone,
+                            otp: otp
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.citizenData = data.citizen;
+                        this.showMessage('✅ Welcome back, ' + data.citizen.name, 'success');
+                        setTimeout(() => {
+                            this.onLoginSuccess(data.citizen);
+                        }, 1000);
+                    } else {
+                        this.showMessage('❌ ' + data.message, 'error');
+                    }
+                } catch (error) {
+                    this.showMessage('❌ Server Error', 'error');
+                }
+            }
+
+            // OTP Timer
+            startOTPTimer() {
+                let timeLeft = 300;
+                const timerElement = document.getElementById('otpTimer');
+                const timer = setInterval(() => {
+                    const minutes = Math.floor(timeLeft / 60);
+                    const seconds = timeLeft % 60;
+                    if (timerElement) timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    if (timeLeft <= 0) clearInterval(timer);
+                    timeLeft--;
+                }, 1000);
+            }
+
+            // Show message
+            showMessage(message, type) {
+                const messageDiv = document.getElementById('authMessage');
+                if (messageDiv) {
+                    messageDiv.className = `auth-message ${type}`;
+                    messageDiv.textContent = message;
+                    messageDiv.style.display = 'block';
+                }
+            }
+
+            // On successful login
+            onLoginSuccess(citizen) {
+                // Set global app state
+                userName = citizen.name;
+                userPhone = citizen.phone;
+                userEmail = citizen.email;
+                idVerified = true;
+                phoneOtpVerified = true;
+                emailOtpVerified = true;
+
+                // Save citizen data to localStorage
+                localStorage.setItem('citizenData', JSON.stringify(citizen));
+                // Also update the main session storage
+                saveSession('citizen-dashboard');
+
+                // Close modal and cleanup
+                this.closeModal();
+
+                // Move to dashboard
+                showStep('citizen-dashboard');
+                loadComplaints();
+
+                // Update greeting
+                const greeting = document.getElementById('dashboard-greeting');
+                if (greeting) greeting.textContent = `Welcome, ${citizen.name}`;
+
+                // Auto-fill forms
+                const nameInp = document.getElementById('name');
+                const phoneInp = document.getElementById('phone');
+                const emailInp = document.getElementById('email');
+                if (nameInp) nameInp.value = citizen.name;
+                if (phoneInp) phoneInp.value = citizen.phone;
+                if (emailInp) emailInp.value = citizen.email;
+            }
+        }
+
+        // Initialize global auth module
+        const authModule = new CitizenAuth();
+
+        // Auto-fill form if user is already logged in
+        window.addEventListener('DOMContentLoaded', function () {
+            const citizenData = localStorage.getItem('citizenData');
+            if (citizenData) {
+                const citizen = JSON.parse(citizenData);
+                const nameField = document.querySelector('input[name="citizen_name"]');
+                if (nameField && !nameField.value) {
+                    // Only auto-fill if fields are empty
+                    authModule.onLoginSuccess(citizen);
+                }
+            }
+        });
+
+    </script>
+
+    <!-- Floating Sign In/Sign Up Button -->
+
+
+
+    <script>
+        // Check if authModule loaded
+        window.addEventListener('DOMContentLoaded', function () {
+            if (typeof authModule === 'undefined') {
+                console.error('❌ authModule not loaded! Check if js/auth.js exists');
+                alert('Authentication module failed to load. Please refresh the page.');
+            } else {
+                console.log('✅ authModule loaded successfully');
+            }
+        });
+    </script>
+
 </body>
 
 </html>

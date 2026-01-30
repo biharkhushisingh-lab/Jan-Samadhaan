@@ -7,10 +7,9 @@
     <title>Govt Official Dashboard | E-Grievance</title>
 
     <!-- Google Maps API -->
-    <!-- IMPORTANT: Replace YOUR_GOOGLE_MAPS_API_KEY with your actual API key -->
-    <!-- Get your key from: https://console.cloud.google.com/google/maps-apis -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places&callback=initMap
-"></script>
+    <!-- NOTE: Secure via HTTP Referrer restrictions in Google Cloud Console -->
+    <script
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao&libraries=places&callback=initMap"></script>
 
     <style>
         * {
@@ -395,14 +394,18 @@
         <input type="password" id="l-pass" class="login-input" placeholder="Password">
         <input type="text" id="l-govtid" class="login-input" placeholder="Govt ID">
         <button onclick="login()" class="login-btn">Secure Login</button>
-        <p onclick="window.location.href='index.html'" style="cursor: pointer; margin-top: 20px; color: #667eea;">← Back
+        <p onclick="window.location.href='/'" style="cursor: pointer; margin-top: 20px; color: #667eea;">← Back
             to Citizen Portal</p>
     </div>
 
     <div id="dashboard" class="dashboard-container">
         <div class="nav-bar">
             <h3>E-Grievance | <span id="dept-name" style="color: #667eea;"></span></h3>
-            <button onclick="logout()" class="action-btn btn-view">Logout</button>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="window.location.href='/'" class="action-btn"
+                    style="background: #e2e8f0; color: #333;">🏠 Home</button>
+                <button onclick="logout()" class="action-btn btn-view">Logout</button>
+            </div>
         </div>
 
         <div class="stat-grid">
@@ -486,6 +489,13 @@
                     <option value="Power_Dept">⚡ Power</option>
                     <option value="General_Admin_Dept">📋 General Admin</option>
                 </select>
+            </div>
+
+            <div class="form-group route-highlight" id="rejection-group"
+                style="display: none; border-left-color: #e74c3c; background: #fff5f5;">
+                <label style="color: #c0392b;">❌ Rejection Reason (Mandatory):</label>
+                <textarea id="rejection-reason" rows="3"
+                    placeholder="Explain why this complaint is being rejected..."></textarea>
             </div>
 
             <div class="form-group">
@@ -685,7 +695,10 @@
         function toggleRouteOption() {
             const action = document.getElementById('action-type').value;
             const routeGroup = document.getElementById('route-group');
+            const rejectionGroup = document.getElementById('rejection-group');
+
             routeGroup.style.display = (action === 'Forwarded') ? 'block' : 'none';
+            rejectionGroup.style.display = (action === 'Rejected') ? 'block' : 'none';
         }
 
         function closeModal() {
@@ -703,15 +716,26 @@
             const summary = document.getElementById('resolution-summary').value;
             const fileInput = document.getElementById('resolution-proof');
             const routeDept = document.getElementById('route-dept').value;
+            const rejectionReason = document.getElementById('rejection-reason').value;
 
             if (!summary) {
                 alert("Please enter a summary or remarks.");
                 return;
             }
 
+            if (action === 'Rejected' && !rejectionReason) {
+                alert("❌ Please provide a rejection reason.");
+                document.getElementById('rejection-reason').focus();
+                return;
+            }
+
             const fd = new FormData();
             fd.append('status', action);
             fd.append('resolution_summary', summary);
+
+            if (action === 'Rejected') {
+                fd.append('rejection_reason', rejectionReason);
+            }
 
             if (action === 'Forwarded') {
                 fd.append('forward_dept', routeDept);
