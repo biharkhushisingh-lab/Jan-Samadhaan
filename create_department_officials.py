@@ -1,4 +1,4 @@
-from db_config import get_db
+from db_config import get_db, get_db_cursor, format_sql
 import hashlib
 
 def hash_password(pw):
@@ -16,6 +16,7 @@ def create_department_officials():
     ]
 
     conn = get_db()
+    cursor = get_db_cursor(conn)
     
     print("🚀 Seeding Department Officials...")
     
@@ -23,13 +24,16 @@ def create_department_officials():
         username, password, govt_id, name, dept, email, phone = user
         
         # Check if exists
-        exists = conn.execute("SELECT * FROM officials WHERE username=?", (username,)).fetchone()
+        query_check = format_sql("SELECT * FROM officials WHERE username=?")
+        cursor.execute(query_check, (username,))
+        exists = cursor.fetchone()
         
         if not exists:
             try:
-                conn.execute('''INSERT INTO officials 
+                query_insert = format_sql('''INSERT INTO officials 
                                (username, password_hash, govt_id, name, department, email, phone) 
-                               VALUES (?,?,?,?,?,?,?)''',
+                               VALUES (?,?,?,?,?,?,?)''')
+                cursor.execute(query_insert,
                             (username, hash_password(password), govt_id, name, dept, email, phone))
                 print(f"✅ Created: {name} ({dept}) - User: {username} / Pass: {password}")
             except Exception as e:

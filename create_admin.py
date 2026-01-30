@@ -1,4 +1,4 @@
-from db_config import get_db
+from db_config import get_db, get_db_cursor, format_sql
 import hashlib
 
 def hash_password(pw):
@@ -7,12 +7,17 @@ def hash_password(pw):
 def create_admin():
     try:
         conn = get_db()
+        cursor = get_db_cursor(conn)
         # Check if exists
-        exists = conn.execute("SELECT * FROM officials WHERE username='admin@gov.in'").fetchone()
+        query_check = format_sql("SELECT * FROM officials WHERE username='admin@gov.in'")
+        cursor.execute(query_check)
+        exists = cursor.fetchone()
+        
         if not exists:
-            conn.execute('''INSERT INTO officials 
+            query_insert = format_sql('''INSERT INTO officials 
                            (username, password_hash, govt_id, name, department, email, phone) 
-                           VALUES (?,?,?,?,?,?,?)''',
+                           VALUES (?,?,?,?,?,?,?)''')
+            cursor.execute(query_insert,
                         ('admin@gov.in', hash_password('admin123'), 'GOV123', 
                          'System Admin', 'General_Admin_Dept', 'admin@gov.in', '9876543210'))
             conn.commit()

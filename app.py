@@ -353,10 +353,18 @@ def route_complaint(cat):
     return ROUTES.get(cat, 'General_Admin_Dept')
 
 def get_department_email(dept):
-    conn = get_db()
-    result = conn.execute('SELECT email FROM officials WHERE department=? LIMIT 1', (dept,)).fetchone()
-    conn.close()
-    return result['email'] if result else None
+    """Retrieve email address for a specific department"""
+    try:
+        conn = get_db()
+        cursor = get_db_cursor(conn)
+        query = format_sql("SELECT email FROM officials WHERE department = ? LIMIT 1")
+        cursor.execute(query, (dept,))
+        result = cursor.fetchone()
+        conn.close()
+        return result['email'] if result else None
+    except Exception as e:
+        print(f"Error getting dept email: {e}")
+        return None
 
 def check_sla_status(complaint):
     try:
@@ -447,7 +455,7 @@ def check_duplicate_complaints(lat, lon, category, radius_meters=20):
         print(f"Error checking duplicates: {e}")
         return []
 
-# ============= OTP \u0026 AUTHENTICATION HELPERS =============
+# ============= OTP & AUTHENTICATION HELPERS =============
 
 def generate_otp():
     """Generate a 6-digit OTP"""
@@ -682,12 +690,13 @@ def citizen_send_otp():
         if not store_otp(phone, otp_code, purpose):
             return jsonify({"success": False, "message": "Failed to generate OTP"}), 500
         
-        # Also try to send real email if configured
-        send_otp_email(email, otp_code, phone, purpose)
+        # Send real email in BACKGROUND to prevent UI hang
+        import threading
+        threading.Thread(target=send_otp_email, args=(email, otp_code, phone, purpose)).start()
         
         return jsonify({
             "success": True, 
-            "message": f"Mock OTP 123456 sent to {email}",
+            "message": f"OTP 123456 sent to {email}",
             "expires_in": 300
         }), 200
             
@@ -812,15 +821,23 @@ def verify():
             conn = get_db()
             cursor = get_db_cursor(conn)
             # Register or update the citizen in our new system table
-            query = format_sql('''
-                INSERT INTO citizens (phone, name, email, created_at, last_login)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(phone) DO UPDATE SET
-                    name = EXCLUDED.name,
-                    email = EXCLUDED.email,
-                    last_login = EXCLUDED.last_login
-            ''')
-            cursor.execute(query, (phone, name, email, datetime.now().isoformat(), datetime.now().isoformat()))
+            now = datetime.now().isoformat()
+            if is_postgres():
+                query = '''
+                    INSERT INTO citizens (phone, name, email, created_at, last_login)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT(phone) DO UPDATE SET
+                        name = EXCLUDED.name,
+                        email = EXCLUDED.email,
+                        last_login = EXCLUDED.last_login
+                '''
+                cursor.execute(query, (phone, name, email, now, now))
+            else:
+                query = '''
+                    INSERT OR REPLACE INTO citizens (phone, name, email, created_at, last_login)
+                    VALUES (?, ?, ?, ?, ?)
+                '''
+                cursor.execute(query, (phone, name, email, now, now))
             conn.commit()
             conn.close()
             return jsonify({"success": True}), 200
@@ -964,12 +981,13 @@ def submit():
         print(e)
         return jsonify({"success": False, "message": str(e)}), 500
 
-@app.route('/api/login', methods=['POST'])
-def login():
+@app.route('/api/official/login', methods=['POST'])
+def official_login():
     try:
         data = request.json
         u = data.get('username')
         p = data.get('password')
+        g = data.get('govt_id')
         
         conn = get_db()
         cursor = get_db_cursor(conn)
@@ -980,26 +998,27 @@ def login():
         
         if off:
             ph = hash_password(p)
-            if off['password_hash'] == ph:
+            # Check both password and Govt ID if provided
+            if off['password_hash'] == ph and (not g or str(off['govt_id']) == str(g)):
                 return jsonify({
                     "success": True, 
+                    "token": f"TOK_{off['id']}",
                     "user": {
                         "username": off['username'],
                         "name": off['name'],
                         "department": off['department'],
                         "language": off['preferred_language']
-                    }
+                    },
+                    "department": off['department']
                 }), 200
         
-        return jsonify({"success": False, "message": "Invalid credentials"}), 401
+        return jsonify({"success": False, "message": "Invalid credentials or Govt ID"}), 401
     except Exception as e:
-        print(f"❌ Login Request Failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"success": False, "error": str(e)}), 500
+        print(f"Login error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
 
-@app.route('/api/get_complaints')
-def get_complaints():
+@app.route('/api/complaints')
+def get_all_complaints():
     dept = request.args.get('department')
     
     conn = get_db()
@@ -1019,6 +1038,7 @@ def get_complaints():
     for r in rows:
         d = dict(r)
         d['escalation_level'] = check_sla_status(d)
+        # Ensure frontend expected fields are present
         d['description_display'] = d.get('description_translated', d.get('description', ''))
         d['description_original'] = d.get('description_original', d.get('description', ''))
         res.append(d)
@@ -1150,11 +1170,12 @@ def add_official():
     try:
         d = request.json
         conn = get_db()
-        conn.execute('''INSERT INTO officials 
+        cursor = get_db_cursor(conn)
+        query = format_sql('''INSERT INTO officials 
                        (username, password_hash, govt_id, name, department, email, phone) 
-                       VALUES (?,?,?,?,?,?,?)''',
-                    (d['username'], hash_password(d['password']), d['govt_id'], 
-                     d['name'], d['department'], d.get('email'), d.get('phone')))
+                       VALUES (?,?,?,?,?,?,?)''')
+        cursor.execute(query, (d['username'], hash_password(d['password']), d['govt_id'], 
+                      d['name'], d['department'], d.get('email'), d.get('phone')))
         conn.commit()
         conn.close()
         return jsonify({"success": True}), 200
@@ -1168,20 +1189,37 @@ def get_file(fn):
 
 @app.route('/api/analytics/dashboard', methods=['GET'])
 def analytics():
-    dept = request.args.get('department')
-    conn = get_db()
-    q = "FROM complaints WHERE 1=1"
-    p = []
-    if dept: q+=" AND department=?"; p.append(dept)
-    
-    tot = conn.execute(f"SELECT COUNT(*) {q}", p).fetchone()[0]
-    avg_r = conn.execute(f"SELECT AVG(citizen_feedback_rating) {q}", p).fetchone()[0] or 0
-    conn.close()
-    return jsonify({"success": True, "analytics": {
-        "total_complaints": tot, 
-        "avg_citizen_rating": round(avg_r, 1), 
-        "avg_resolution_hours": 0
-    }}), 200
+    try:
+        dept = request.args.get('department')
+        conn = get_db()
+        cursor = get_db_cursor(conn)
+        
+        q_base = "FROM complaints WHERE 1=1"
+        p = []
+        if dept: 
+            q_base += " AND department = ?"
+            p.append(dept)
+        
+        query_count = format_sql(f"SELECT COUNT(*) {q_base}")
+        cursor.execute(query_count, tuple(p))
+        tot = cursor.fetchone()
+        count = tot[0] if isinstance(tot, (list, tuple)) else tot['count'] if 'count' in tot else tot[list(tot.keys())[0]]
+        
+        query_avg = format_sql(f"SELECT AVG(citizen_feedback_rating) {q_base}")
+        cursor.execute(query_avg, tuple(p))
+        avg_row = cursor.fetchone()
+        avg_r = avg_row[0] if isinstance(avg_row, (list, tuple)) else avg_row['avg'] if 'avg' in avg_row else avg_row[list(avg_row.keys())[0]]
+        avg_r = avg_r or 0
+        
+        conn.close()
+        return jsonify({"success": True, "analytics": {
+            "total_complaints": count, 
+            "avg_citizen_rating": round(float(avg_r), 1), 
+            "avg_resolution_hours": 0
+        }}), 200
+    except Exception as e:
+        print(f"Analytics Error: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
 @app.route('/api/test_email', methods=['POST'])
 def test_email_route():
     try:
