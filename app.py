@@ -1025,8 +1025,15 @@ def official_login():
             ph = hash_password(p)
             
             # Use dictionary access for PostgreSQL/SQLite compatibility
+            # SQLite rows don't have .get(), so we use a safe access pattern
             stored_hash = off['password_hash']
-            stored_gid = str(off['govt_id']).strip() if off.get('govt_id') is not None else ""
+            
+            try:
+                gid_val = off['govt_id']
+            except (KeyError, IndexError, TypeError):
+                gid_val = None
+                
+            stored_gid = str(gid_val).strip() if gid_val is not None else ""
             
             pw_match = (stored_hash == ph)
             # If g is provided, it must match. If not provided, skip gid check.
