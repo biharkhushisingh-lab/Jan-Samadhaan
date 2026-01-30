@@ -1066,13 +1066,19 @@ def official_login():
 def db_status():
     """Diagnostic route to check database health and contents"""
     try:
+        from db_config import get_db_info
+        info = get_db_info()
+        
         conn = get_db()
         cursor = get_db_cursor(conn)
         
         # Check officials count
         cursor.execute(format_sql("SELECT COUNT(*) FROM officials", conn))
         off_res = cursor.fetchone()
-        count = off_res[0] if off_res else 0
+        count = 0
+        if off_res:
+            try: count = off_res[0]
+            except: count = list(off_res.values())[0] if hasattr(off_res, 'values') else 0
         
         # Check if admin specifically exists
         cursor.execute(format_sql("SELECT username FROM officials WHERE username = ?", conn), ('admin@gov.in',))
@@ -1081,8 +1087,11 @@ def db_status():
         # Check complaints count
         cursor.execute(format_sql("SELECT COUNT(*) FROM complaints", conn))
         comp_res = cursor.fetchone()
-        comp_count = comp_res[0] if comp_res else 0
-        
+        comp_count = 0
+        if comp_res:
+            try: comp_count = comp_res[0]
+            except: comp_count = list(comp_res.values())[0] if hasattr(comp_res, 'values') else 0
+            
         conn.close()
         
         return jsonify({
@@ -1095,9 +1104,11 @@ def db_status():
             "timestamp": datetime.now().isoformat()
         }), 200
     except Exception as e:
+        import traceback
         return jsonify({
             "success": False,
-            "error": str(e)
+            "error": str(e),
+            "traceback": traceback.format_exc()
         }), 500
 
 @app.route('/api/debug/force-seed')
