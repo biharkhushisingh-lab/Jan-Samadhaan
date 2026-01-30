@@ -1078,9 +1078,10 @@ def db_status():
         cursor.execute(format_sql("SELECT username FROM officials WHERE username = ?", conn), ('admin@gov.in',))
         admin_exists = cursor.fetchone() is not None
         
-        # Get DB info
-        from db_config import get_db_info
-        info = get_db_info()
+        # Check complaints count
+        cursor.execute(format_sql("SELECT COUNT(*) as count FROM complaints", conn))
+        comp_res = cursor.fetchone()
+        comp_count = comp_res[0] if isinstance(comp_res, (list, tuple)) else comp_res['count']
         
         conn.close()
         
@@ -1088,6 +1089,7 @@ def db_status():
             "success": True,
             "db_type": info['type'],
             "officials_count": count,
+            "complaints_count": comp_count,
             "admin_ready": admin_exists,
             "version": VERSION,
             "timestamp": datetime.now().isoformat()
