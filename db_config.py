@@ -51,21 +51,32 @@ def get_db_cursor(conn):
     """
     Get a cursor that returns rows as dictionaries for both SQLite and Postgres
     """
-    if is_postgres():
-        return conn.cursor(cursor_factory=RealDictCursor)
-    else:
+    # Explicitly check if it's a SQLite connection
+    import sqlite3
+    if isinstance(conn, sqlite3.Connection):
         return conn.cursor()
+    
+    # Otherwise assume Postgres (if available)
+    if POSTGRES_AVAILABLE:
+        try:
+            return conn.cursor(cursor_factory=RealDictCursor)
+        except:
+            return conn.cursor()
+    return conn.cursor()
 
-def format_sql(sql):
+def format_sql(sql, conn=None):
     """
     Convert SQL placeholders from '?' (SQLite) to '%s' (PostgreSQL) if needed
     """
-    if is_postgres():
+    if is_postgres(conn):
         return sql.replace('?', '%s')
     return sql
 
-def is_postgres():
+def is_postgres(conn=None):
     """Check if currently using PostgreSQL"""
+    if conn:
+        import sqlite3
+        return not isinstance(conn, sqlite3.Connection)
     return DATABASE_URL and POSTGRES_AVAILABLE
 
 def init_db():
