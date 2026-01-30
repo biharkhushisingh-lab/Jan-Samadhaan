@@ -34,15 +34,20 @@ def get_db():
                 # Render uses postgres:// but psycopg2 needs postgresql://
                 db_url = db_url.replace('postgres://', 'postgresql://', 1)
             
+            print(f"📡 Connecting to PostgreSQL...")
             conn = psycopg2.connect(db_url)
             # psycopg2 uses cursor_factory in cursor() call, not row_factory on connection
             return conn
         except Exception as e:
             print(f"❌ PostgreSQL connection failed: {e}")
+            if "sslmode" not in db_url:
+                print("💡 Tip: Try adding ?sslmode=require to your DATABASE_URL")
             print("   Falling back to SQLite...")
             # Fall through to SQLite
     
     # Use SQLite (local development or fallback)
+    if not DATABASE_URL:
+        print(f"📁 Using SQLite database: {SQLITE_DB}")
     conn = sqlite3.connect(SQLITE_DB)
     conn.row_factory = sqlite3.Row
     return conn

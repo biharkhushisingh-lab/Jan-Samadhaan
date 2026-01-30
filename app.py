@@ -1014,14 +1014,16 @@ def official_login():
         if not u or not p:
             return jsonify({"success": False, "message": "Username and password required"}), 400
             
+        print(f"🔑 Login attempt for user: {u}")
         conn = get_db()
         cursor = get_db_cursor(conn)
-        query = format_sql("SELECT * FROM officials WHERE LOWER(username) = LOWER(?)")
+        query = format_sql("SELECT * FROM officials WHERE LOWER(username) = LOWER(?)", conn)
         cursor.execute(query, (u,))
         off = cursor.fetchone()
         conn.close()
         
         if off:
+            print(f"✅ Found official: {off['username']}")
             ph = hash_password(p)
             
             # Use dictionary access for PostgreSQL/SQLite compatibility
@@ -1057,8 +1059,44 @@ def official_login():
         
         return jsonify({"success": False, "message": f"Login Failed ({VERSION}): Official account not found"}), 401
     except Exception as e:
-        print(f"Login error: {e}")
+        print(f"❌ Login error: {e}")
         return jsonify({"success": False, "message": f"Server Error: {str(e)}"}), 500
+
+@app.route('/api/debug/db-status')
+def db_status():
+    """Diagnostic route to check database health and contents"""
+    try:
+        conn = get_db()
+        cursor = get_db_cursor(conn)
+        
+        # Check officials count
+        cursor.execute(format_sql("SELECT COUNT(*) as count FROM officials", conn))
+        off_count = cursor.fetchone()
+        count = off_count[0] if isinstance(off_count, (list, tuple)) else off_count['count']
+        
+        # Check if admin specifically exists
+        cursor.execute(format_sql("SELECT username FROM officials WHERE username = ?", conn), ('admin@gov.in',))
+        admin_exists = cursor.fetchone() is not None
+        
+        # Get DB info
+        from db_config import get_db_info
+        info = get_db_info()
+        
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "db_type": info['type'],
+            "officials_count": count,
+            "admin_ready": admin_exists,
+            "version": VERSION,
+            "timestamp": datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 @app.route('/api/complaints')
 def get_all_complaints():

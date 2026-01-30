@@ -24,7 +24,7 @@ def create_department_officials():
         username, password, govt_id, name, dept, email, phone = user
         
         # Check if exists
-        query_check = format_sql("SELECT * FROM officials WHERE username=?")
+        query_check = format_sql("SELECT * FROM officials WHERE username=?", conn)
         cursor.execute(query_check, (username,))
         exists = cursor.fetchone()
         
@@ -33,7 +33,7 @@ def create_department_officials():
             try:
                 query_update = format_sql('''UPDATE officials SET 
                                password_hash=?, govt_id=?, name=?, department=?, email=?, phone=? 
-                               WHERE username=?''')
+                               WHERE username=?''', conn)
                 cursor.execute(query_update,
                             (hash_password(password), govt_id, name, dept, email, phone, username))
                 print(f"🔄 Updated: {username}")
@@ -44,7 +44,7 @@ def create_department_officials():
             try:
                 query_insert = format_sql('''INSERT INTO officials 
                                (username, password_hash, govt_id, name, department, email, phone) 
-                               VALUES (?,?,?,?,?,?,?)''')
+                               VALUES (?,?,?,?,?,?,?)''', conn)
                 cursor.execute(query_insert,
                             (username, hash_password(password), govt_id, name, dept, email, phone))
                 print(f"✅ Created: {username}")
