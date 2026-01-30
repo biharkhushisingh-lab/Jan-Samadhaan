@@ -6,7 +6,7 @@
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from db_config import get_db, init_db, is_postgres  # PostgreSQL support
+from db_config import get_db, init_db, is_postgres, get_db_cursor, format_sql  # PostgreSQL support
 import os
 import time
 import random
@@ -45,6 +45,9 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
+
+# Handle DB initialization
+init_db()
 
 # ============= 🌐 MULTILINGUAL SUPPORT =============
 SUPPORTED_LANGUAGES = {
@@ -461,12 +464,11 @@ def store_otp(phone, otp_code, purpose='signin'):
     """Store OTP in database with expiration"""
     try:
         conn = get_db()
-        created_at = datetime.now().isoformat()
-        expires_at = (datetime.now() + timedelta(minutes=5)).isoformat()
+        cursor = get_db_cursor(conn)
+        expiry = (datetime.now() + timedelta(minutes=5)).isoformat()
         
-        conn.execute('''INSERT INTO otps (phone, otp_code, purpose, created_at, expires_at, used)
-                       VALUES (?,?,?,?,?,?)''',
-                    (phone, otp_code, purpose, created_at, expires_at, 0 if is_postgres() else 0))
+        query = format_sql("INSERT INTO otps (phone, otp_code, purpose, created_at, expires_at) VALUES (?, ?, ?, ?, ?)")
+        cursor.execute(query, (phone, otp_code, purpose, datetime.now().isoformat(), expiry))
         conn.commit()
         conn.close()
         return True
@@ -537,10 +539,13 @@ def send_otp_email(to_email, otp_code, phone, purpose='signin'):
     return send_email(to_email, f"🔐 Your OTP Code - {otp_code}", html_content)
 
 def get_citizen_by_phone(phone):
-    """Get citizen details by phone number"""
+    """Retrieve citizen details by phone number"""
     try:
         conn = get_db()
-        citizen = conn.execute('SELECT * FROM citizens WHERE phone=?', (phone,)).fetchone()
+        cursor = get_db_cursor(conn)
+        query = format_sql("SELECT * FROM citizens WHERE phone = ?")
+        cursor.execute(query, (phone,))
+        citizen = cursor.fetchone()
         conn.close()
         return dict(citizen) if citizen else None
     except Exception as e:
@@ -551,12 +556,10 @@ def create_citizen(phone, name=None, email=None, address=None):
     """Create new citizen record"""
     try:
         conn = get_db()
-        created_at = datetime.now().isoformat()
-        last_login = created_at
-        
-        conn.execute('''INSERT INTO citizens (phone, name, email, address, created_at, last_login)
-                       VALUES (?,?,?,?,?,?)''',
-                    (phone, name, email, address, created_at, last_login))
+        cursor = get_db_cursor(conn)
+        now = datetime.now().isoformat()
+        query = format_sql("INSERT INTO citizens (phone, name, email, address, created_at, last_login) VALUES (?, ?, ?, ?, ?, ?)")
+        cursor.execute(query, (phone, name, email, address, now, now))
         conn.commit()
         conn.close()
         return True
@@ -568,8 +571,10 @@ def update_citizen_login(phone):
     """Update last login time for citizen"""
     try:
         conn = get_db()
-        conn.execute('UPDATE citizens SET last_login=? WHERE phone=?', 
-                    (datetime.now().isoformat(), phone))
+        cursor = get_db_cursor(conn)
+        now = datetime.now().isoformat()
+        query = format_sql("UPDATE citizens SET last_login = ? WHERE phone = ?")
+        cursor.execute(query, (now, phone))
         conn.commit()
         conn.close()
         return True
@@ -629,12 +634,15 @@ def check_citizen_exists():
             return jsonify({"success": False, "message": "Identifier required"}), 400
             
         conn = get_db()
+        cursor = get_db_cursor(conn)
         # Search by phone
-        citizen = conn.execute('SELECT * FROM citizens WHERE phone=?', (identifier,)).fetchone()
+        query_phone = format_sql('SELECT * FROM citizens WHERE phone=?')
+        citizen = cursor.execute(query_phone, (identifier,)).fetchone()
         
         # If not found and identifier looks like email, search by email
         if not citizen and '@' in identifier:
-            citizen = conn.execute('SELECT * FROM citizens WHERE email=?', (identifier,)).fetchone()
+            query_email = format_sql('SELECT * FROM citizens WHERE email=?')
+            citizen = cursor.execute(query_email, (identifier,)).fetchone()
             
         conn.close()
         
@@ -764,33 +772,30 @@ def citizen_signup():
 
 # Duplicate removed - using version at line 586
 
-@app.route('/api/citizen/complaints', methods=['POST'])
+@app.route('/api/citizen/complaints', methods=['GET'])
 def get_citizen_complaints():
     """Get all complaints for a citizen by phone number"""
     try:
-        data = request.json
-        phone = data.get('phone')
-        
+        phone = request.args.get('phone')
         if not phone:
             return jsonify({"success": False, "message": "Phone required"}), 400
-        
+            
         conn = get_db()
-        complaints = conn.execute(
-            'SELECT * FROM complaints WHERE citizen_phone=? ORDER BY created_at DESC',
-            (phone,)
-        ).fetchall()
-        conn.close()
+        cursor = get_db_cursor(conn)
+        query = format_sql("SELECT * FROM complaints WHERE citizen_phone = ? ORDER BY created_at DESC")
+        cursor.execute(query, (phone,))
+        complaints = cursor.fetchall()
         
-        res = []
-        for r in complaints:
-            d = dict(r)
+        # Format results
+        results = []
+        for c in complaints:
+            d = dict(c)
             d['escalation_level'] = check_sla_status(d)
-            res.append(d)
-        
-        return jsonify({"success": True, "complaints": res}), 200
-        
+            results.append(d)
+        conn.close()
+        return jsonify({"success": True, "complaints": results}), 200
     except Exception as e:
-        print(f"Get complaints error: {e}")
+        print(f"Error fetching complaints: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 # ============= OLD VERIFICATION (DEPRECATED) =============
@@ -805,11 +810,17 @@ def verify():
     if name and email and phone:
         try:
             conn = get_db()
+            cursor = get_db_cursor(conn)
             # Register or update the citizen in our new system table
-            conn.execute('''
-                INSERT OR REPLACE INTO citizens (phone, name, email, created_at, last_login)
+            query = format_sql('''
+                INSERT INTO citizens (phone, name, email, created_at, last_login)
                 VALUES (?, ?, ?, ?, ?)
-            ''', (phone, name, email, datetime.now().isoformat(), datetime.now().isoformat()))
+                ON CONFLICT(phone) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    email = EXCLUDED.email,
+                    last_login = EXCLUDED.last_login
+            ''')
+            cursor.execute(query, (phone, name, email, datetime.now().isoformat(), datetime.now().isoformat()))
             conn.commit()
             conn.close()
             return jsonify({"success": True}), 200
@@ -896,13 +907,17 @@ def submit():
                 f.save(os.path.join(app.config['UPLOAD_FOLDER'], media))
         
         conn = get_db()
-        conn.execute('''INSERT INTO complaints 
+        cursor = get_db_cursor(conn)
+        
+        sql = """INSERT INTO complaints 
             (id, citizen_name, citizen_email, citizen_phone, citizen_address, 
              latitude, longitude, location_address,
              category, description, description_original, description_translated,
              media_path, priority, department, assigned_to, 
              created_at, sla_hours, sla_deadline, ai_analysis, citizen_language)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
+            
+        cursor.execute(format_sql(sql),
             (tid, d['citizen_name'], d['citizen_email'], d['citizen_phone'], d['citizen_address'],
              lat, lon, loc_addr,
              cat if cat else 'Auto-Detected', desc_translated, desc_original, desc_translated, 
@@ -949,21 +964,33 @@ def submit():
         print(e)
         return jsonify({"success": False, "message": str(e)}), 500
 
-@app.route('/api/official/login', methods=['POST'])
+@app.route('/api/login', methods=['POST'])
 def login():
     try:
-        d = request.json
+        data = request.json
+        u = data.get('username')
+        p = data.get('password')
+        
         conn = get_db()
-        off = conn.execute('SELECT * FROM officials WHERE username=? AND password_hash=? AND govt_id=?',
-                          (d['username'], hash_password(d['password']), d['govt_id'])).fetchone()
+        cursor = get_db_cursor(conn)
+        query = format_sql("SELECT * FROM officials WHERE username = ?")
+        cursor.execute(query, (u,))
+        off = cursor.fetchone()
         conn.close()
+        
         if off:
-            return jsonify({
-                "success": True, 
-                "token": f"TOK_{off['id']}", 
-                "official_name": off['name'], 
-                "department": off['department']
-            }), 200
+            ph = hash_password(p)
+            if off['password_hash'] == ph:
+                return jsonify({
+                    "success": True, 
+                    "user": {
+                        "username": off['username'],
+                        "name": off['name'],
+                        "department": off['department'],
+                        "language": off['preferred_language']
+                    }
+                }), 200
+        
         return jsonify({"success": False, "message": "Invalid credentials"}), 401
     except Exception as e:
         print(f"❌ Login Request Failed: {e}")
@@ -971,17 +998,21 @@ def login():
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/api/complaints', methods=['GET'])
+@app.route('/api/get_complaints')
 def get_complaints():
     dept = request.args.get('department')
     
     conn = get_db()
+    cursor = get_db_cursor(conn)
     q = "SELECT * FROM complaints WHERE 1=1"
     p = []
     if dept: 
         q += " AND department=?"; p.append(dept)
-    q += " ORDER BY priority DESC, created_at DESC"
-    rows = conn.execute(q, p).fetchall()
+    
+    q += " ORDER BY created_at DESC"
+    
+    cursor.execute(format_sql(q), tuple(p))
+    rows = cursor.fetchall()
     conn.close()
     
     res = []
@@ -993,6 +1024,22 @@ def get_complaints():
         res.append(d)
     
     return jsonify({"success": True, "complaints": res}), 200
+
+@app.route('/api/complaint/<cid>', methods=['GET'])
+def get_complaint_details(cid):
+    """Get details of a single complaint by ID"""
+    try:
+        conn = get_db()
+        cursor = get_db_cursor(conn)
+        query = format_sql("SELECT * FROM complaints WHERE id = ?")
+        cursor.execute(query, (cid,))
+        c = cursor.fetchone()
+        conn.close()
+        if c:
+            return jsonify({"success": True, "complaint": dict(c)}), 200
+        return jsonify({"success": False, "message": "Not found"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/complaint/<cid>/update', methods=['POST'])
 def update(cid):
@@ -1006,13 +1053,16 @@ def update(cid):
         transfer_reason = d.get('transfer_reason', '')
         
         conn = get_db()
-        curr = conn.execute('SELECT * FROM complaints WHERE id=?', (cid,)).fetchone()
+        cursor = get_db_cursor(conn)
+        
+        curr_query = format_sql('SELECT * FROM complaints WHERE id=?')
+        curr = cursor.execute(curr_query, (cid,)).fetchone()
         
         if not curr:
             conn.close()
             return jsonify({"success": False, "message": "Complaint not found"}), 404
         
-        upd_q = "UPDATE complaints SET status=?, resolution_summary=?"
+        upd_q_parts = ["status=?", "resolution_summary=?"]
         upd_p = [status, summary]
         
         citizen_lang = curr['citizen_language'] if curr['citizen_language'] else 'en'
@@ -1023,36 +1073,37 @@ def update(cid):
                 fn = secure_filename(f.filename)
                 proof = f"res_{int(time.time())}_{fn}"
                 f.save(os.path.join(app.config['UPLOAD_FOLDER'], proof))
-                upd_q += ", resolution_proof=?"
+                upd_q_parts.append("resolution_proof=?")
                 upd_p.append(proof)
 
         # Handle department transfer
         if status == 'Forwarded' and forward_dept:
             old_dept = curr['department']
-            upd_q += ", department=?, assigned_to=?, transfer_count=?"
+            upd_q_parts.extend(["department=?", "assigned_to=?", "transfer_count=?"])
             upd_p.extend([forward_dept, f"{forward_dept}_Manager", 
                          (curr['transfer_count'] or 0) + 1])
             
             # Log transfer history
-            conn.execute('''INSERT INTO complaint_transfers 
+            transfer_query = format_sql('''INSERT INTO complaint_transfers 
                            (complaint_id, from_department, to_department, transferred_by, transfer_reason, transferred_at)
-                           VALUES (?,?,?,?,?,?)''',
+                           VALUES (?,?,?,?,?,?)''')
+            cursor.execute(transfer_query,
                         (cid, old_dept, forward_dept, transferred_by, transfer_reason, 
                          datetime.now().isoformat()))
 
         # Handle rejection
         if status == 'Rejected' and rejection_reason:
-            upd_q += ", rejection_reason=?"
+            upd_q_parts.append("rejection_reason=?")
             upd_p.append(rejection_reason)
 
         if status == 'Resolved':
-            upd_q += ", resolved_at=?"
+            upd_q_parts.append("resolved_at=?")
             upd_p.append(datetime.now().isoformat())
 
-        upd_q += " WHERE id=?"
+        upd_q = format_sql(f"UPDATE complaints SET {', '.join(upd_q_parts)} WHERE id=?")
         upd_p.append(cid)
         
-        conn.execute(upd_q, upd_p)
+        cursor.execute(upd_q, tuple(upd_p))
         conn.commit()
         conn.close()
         return jsonify({"success": True, "message": f"Complaint {status}"}), 200
@@ -1065,9 +1116,11 @@ def get_transfer_history(cid):
     """Get transfer history for a complaint"""
     try:
         conn = get_db()
-        transfers = conn.execute('''SELECT * FROM complaint_transfers 
+        cursor = get_db_cursor(conn)
+        query = format_sql('''SELECT * FROM complaint_transfers 
                                    WHERE complaint_id=? 
-                                   ORDER BY transferred_at DESC''', (cid,)).fetchall()
+                                   ORDER BY transferred_at DESC''')
+        transfers = cursor.execute(query, (cid,)).fetchall()
         conn.close()
         
         res = [dict(t) for t in transfers]
@@ -1081,12 +1134,15 @@ def feedback(cid):
     try:
         d = request.json
         conn = get_db()
-        conn.execute('UPDATE complaints SET citizen_feedback_rating=?, citizen_feedback_comments=? WHERE id=?',
-                    (d['rating'], d.get('comment',''), cid))
+        cursor = get_db_cursor(conn)
+        
+        q = format_sql('UPDATE complaints SET citizen_feedback_rating=?, citizen_feedback_comments=? WHERE id=?')
+        cursor.execute(q, (d['rating'], d.get('comment',''), cid))
         conn.commit()
         conn.close()
         return jsonify({"success": True}), 200
-    except:
+    except Exception as e:
+        print(f"Feedback error: {e}")
         return jsonify({"success": False}), 500
 
 @app.route('/api/add_official', methods=['POST'])

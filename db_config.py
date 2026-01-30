@@ -35,7 +35,7 @@ def get_db():
                 db_url = db_url.replace('postgres://', 'postgresql://', 1)
             
             conn = psycopg2.connect(db_url)
-            conn.row_factory = RealDictCursor  # Return rows as dictionaries
+            # psycopg2 uses cursor_factory in cursor() call, not row_factory on connection
             return conn
         except Exception as e:
             print(f"❌ PostgreSQL connection failed: {e}")
@@ -47,6 +47,23 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+def get_db_cursor(conn):
+    """
+    Get a cursor that returns rows as dictionaries for both SQLite and Postgres
+    """
+    if is_postgres():
+        return conn.cursor(cursor_factory=RealDictCursor)
+    else:
+        return conn.cursor()
+
+def format_sql(sql):
+    """
+    Convert SQL placeholders from '?' (SQLite) to '%s' (PostgreSQL) if needed
+    """
+    if is_postgres():
+        return sql.replace('?', '%s')
+    return sql
+
 def is_postgres():
     """Check if currently using PostgreSQL"""
     return DATABASE_URL and POSTGRES_AVAILABLE
@@ -54,7 +71,7 @@ def is_postgres():
 def init_db():
     """Initialize database tables"""
     conn = get_db()
-    cursor = conn.cursor()
+    cursor = get_db_cursor(conn)
     
     try:
         # Complaints table (with new fields)
