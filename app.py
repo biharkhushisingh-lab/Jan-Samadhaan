@@ -38,7 +38,7 @@ except ImportError:
 app = Flask(__name__)
 CORS(app)
 
-VERSION = "v2.0.4-DEBUG"
+VERSION = "v2.0.5-DIAGNOSTIC"
 
 @app.route('/api/health')
 def health():
@@ -1072,33 +1072,30 @@ def db_status():
         conn = get_db()
         cursor = get_db_cursor(conn)
         
-        # Check officials count
-        cursor.execute(format_sql("SELECT COUNT(*) FROM officials", conn))
-        off_res = cursor.fetchone()
-        count = 0
-        if off_res:
-            try: count = off_res[0]
-            except: count = list(off_res.values())[0] if hasattr(off_res, 'values') else 0
+        # Robust count fetching
+        def get_count(table):
+            cursor.execute(format_sql(f"SELECT COUNT(*) FROM {table}", conn))
+            row = cursor.fetchone()
+            if not row: return 0
+            if isinstance(row, (list, tuple)): return row[0]
+            if hasattr(row, 'values'): return list(row.values())[0]
+            try: return row[0]
+            except: return 0
+
+        official_count = get_count("officials")
+        complaint_count = get_count("complaints")
         
         # Check if admin specifically exists
         cursor.execute(format_sql("SELECT username FROM officials WHERE username = ?", conn), ('admin@gov.in',))
         admin_exists = cursor.fetchone() is not None
         
-        # Check complaints count
-        cursor.execute(format_sql("SELECT COUNT(*) FROM complaints", conn))
-        comp_res = cursor.fetchone()
-        comp_count = 0
-        if comp_res:
-            try: comp_count = comp_res[0]
-            except: comp_count = list(comp_res.values())[0] if hasattr(comp_res, 'values') else 0
-            
         conn.close()
         
         return jsonify({
             "success": True,
             "db_type": info['type'],
-            "officials_count": count,
-            "complaints_count": comp_count,
+            "officials_count": official_count,
+            "complaints_count": complaint_count,
             "admin_ready": admin_exists,
             "version": VERSION,
             "timestamp": datetime.now().isoformat()
