@@ -40,6 +40,8 @@ def get_db():
             return conn
         except Exception as e:
             print(f"❌ PostgreSQL connection failed: {e}")
+            import traceback
+            traceback.print_exc()
             if "sslmode" not in db_url:
                 print("💡 Tip: Try adding ?sslmode=require to your DATABASE_URL")
             print("   Falling back to SQLite...")

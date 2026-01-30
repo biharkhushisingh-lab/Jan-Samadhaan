@@ -375,7 +375,7 @@ def get_department_email(dept):
     try:
         conn = get_db()
         cursor = get_db_cursor(conn)
-        query = format_sql("SELECT email FROM officials WHERE department = ? LIMIT 1")
+        query = format_sql("SELECT email FROM officials WHERE department = ? LIMIT 1", conn)
         cursor.execute(query, (dept,))
         result = cursor.fetchone()
         conn.close()
@@ -440,7 +440,7 @@ def check_duplicate_complaints(lat, lon, category, radius_meters=20):
                    AND longitude IS NOT NULL 
                    AND status NOT IN ('Resolved', 'Rejected')'''
         
-        cursor.execute(format_sql(query))
+        cursor.execute(format_sql(query, conn))
         complaints = cursor.fetchall()
         conn.close()
         
@@ -495,7 +495,7 @@ def store_otp(phone, otp_code, purpose='signin'):
         cursor = get_db_cursor(conn)
         expiry = (datetime.now() + timedelta(minutes=5)).isoformat()
         
-        query = format_sql("INSERT INTO otps (phone, otp_code, purpose, created_at, expires_at) VALUES (?, ?, ?, ?, ?)")
+        query = format_sql("INSERT INTO otps (phone, otp_code, purpose, created_at, expires_at) VALUES (?, ?, ?, ?, ?)", conn)
         cursor.execute(query, (phone, otp_code, purpose, datetime.now().isoformat(), expiry))
         conn.commit()
         conn.close()
@@ -603,7 +603,7 @@ def update_citizen_login(phone):
         conn = get_db()
         cursor = get_db_cursor(conn)
         now = datetime.now().isoformat()
-        query = format_sql("UPDATE citizens SET last_login = ? WHERE phone = ?")
+        query = format_sql("UPDATE citizens SET last_login = ? WHERE phone = ?", conn)
         cursor.execute(query, (now, phone))
         conn.commit()
         conn.close()
@@ -956,7 +956,7 @@ def submit():
              created_at, sla_hours, sla_deadline, ai_analysis, citizen_language)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"""
             
-        cursor.execute(format_sql(sql),
+        cursor.execute(format_sql(sql, conn),
             (tid, d['citizen_name'], d['citizen_email'], d['citizen_phone'], d['citizen_address'],
              lat, lon, loc_addr,
              cat if cat else 'Auto-Detected', desc_translated, desc_original, desc_translated, 
@@ -1155,7 +1155,7 @@ def get_all_complaints():
     
     q += " ORDER BY created_at DESC"
     
-    cursor.execute(format_sql(q), tuple(p))
+    cursor.execute(format_sql(q, conn), tuple(p))
     rows = cursor.fetchall()
     conn.close()
     
@@ -1200,7 +1200,7 @@ def update(cid):
         conn = get_db()
         cursor = get_db_cursor(conn)
         
-        curr_query = format_sql('SELECT * FROM complaints WHERE id=?')
+        curr_query = format_sql('SELECT * FROM complaints WHERE id=?', conn)
         curr = cursor.execute(curr_query, (cid,)).fetchone()
         
         if not curr:
@@ -1231,7 +1231,7 @@ def update(cid):
             # Log transfer history
             transfer_query = format_sql('''INSERT INTO complaint_transfers 
                            (complaint_id, from_department, to_department, transferred_by, transfer_reason, transferred_at)
-                           VALUES (?,?,?,?,?,?)''')
+                           VALUES (?,?,?,?,?,?)''', conn)
             cursor.execute(transfer_query,
                         (cid, old_dept, forward_dept, transferred_by, transfer_reason, 
                          datetime.now().isoformat()))
@@ -1245,7 +1245,7 @@ def update(cid):
             upd_q_parts.append("resolved_at=?")
             upd_p.append(datetime.now().isoformat())
 
-        upd_q = format_sql(f"UPDATE complaints SET {', '.join(upd_q_parts)} WHERE id=?")
+        upd_q = format_sql(f"UPDATE complaints SET {', '.join(upd_q_parts)} WHERE id=?", conn)
         upd_p.append(cid)
         
         cursor.execute(upd_q, tuple(upd_p))
@@ -1264,7 +1264,7 @@ def get_transfer_history(cid):
         cursor = get_db_cursor(conn)
         query = format_sql('''SELECT * FROM complaint_transfers 
                                    WHERE complaint_id=? 
-                                   ORDER BY transferred_at DESC''')
+                                   ORDER BY transferred_at DESC''', conn)
         transfers = cursor.execute(query, (cid,)).fetchall()
         conn.close()
         
@@ -1281,7 +1281,7 @@ def feedback(cid):
         conn = get_db()
         cursor = get_db_cursor(conn)
         
-        q = format_sql('UPDATE complaints SET citizen_feedback_rating=?, citizen_feedback_comments=? WHERE id=?')
+        q = format_sql('UPDATE complaints SET citizen_feedback_rating=?, citizen_feedback_comments=? WHERE id=?', conn)
         cursor.execute(q, (d['rating'], d.get('comment',''), cid))
         conn.commit()
         conn.close()
@@ -1298,7 +1298,7 @@ def add_official():
         cursor = get_db_cursor(conn)
         query = format_sql('''INSERT INTO officials 
                        (username, password_hash, govt_id, name, department, email, phone) 
-                       VALUES (?,?,?,?,?,?,?)''')
+                       VALUES (?,?,?,?,?,?,?)''', conn)
         cursor.execute(query, (d['username'], hash_password(d['password']), d['govt_id'], 
                       d['name'], d['department'], d.get('email'), d.get('phone')))
         conn.commit()
@@ -1325,12 +1325,12 @@ def analytics():
             q_base += " AND department = ?"
             p.append(dept)
         
-        query_count = format_sql(f"SELECT COUNT(*) {q_base}")
+        query_count = format_sql(f"SELECT COUNT(*) {q_base}", conn)
         cursor.execute(query_count, tuple(p))
         tot = cursor.fetchone()
         count = tot[0] if isinstance(tot, (list, tuple)) else tot['count'] if 'count' in tot else tot[list(tot.keys())[0]]
         
-        query_avg = format_sql(f"SELECT AVG(citizen_feedback_rating) {q_base}")
+        query_avg = format_sql(f"SELECT AVG(citizen_feedback_rating) {q_base}", conn)
         cursor.execute(query_avg, tuple(p))
         avg_row = cursor.fetchone()
         avg_r = avg_row[0] if isinstance(avg_row, (list, tuple)) else avg_row['avg'] if 'avg' in avg_row else avg_row[list(avg_row.keys())[0]]
