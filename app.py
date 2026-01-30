@@ -995,21 +995,32 @@ def submit():
 def official_login():
     try:
         data = request.json
-        u = data.get('username')
-        p = data.get('password')
-        g = data.get('govt_id')
+        u = data.get('username', '').lower().strip()
+        p = data.get('password', '')
+        g = data.get('govt_id', '').strip()
         
+        if not u or not p:
+            return jsonify({"success": False, "message": "Username and password required"}), 400
+            
         conn = get_db()
         cursor = get_db_cursor(conn)
-        query = format_sql("SELECT * FROM officials WHERE username = ?")
+        query = format_sql("SELECT * FROM officials WHERE LOWER(username) = LOWER(?)")
         cursor.execute(query, (u,))
         off = cursor.fetchone()
         conn.close()
         
         if off:
             ph = hash_password(p)
-            # Check both password and Govt ID if provided
-            if off['password_hash'] == ph and (not g or str(off['govt_id']) == str(g)):
+            
+            # Use dictionary access for PostgreSQL/SQLite compatibility
+            stored_hash = off['password_hash']
+            stored_gid = str(off['govt_id']).strip() if off.get('govt_id') is not None else ""
+            
+            pw_match = (stored_hash == ph)
+            # If g is provided, it must match. If not provided, skip gid check.
+            gid_match = (not g or g == stored_gid)
+            
+            if pw_match and gid_match:
                 return jsonify({
                     "success": True, 
                     "token": f"TOK_{off['id']}",
@@ -1021,11 +1032,14 @@ def official_login():
                     },
                     "department": off['department']
                 }), 200
+            else:
+                reason = "Incorrect password" if not pw_match else "Incorrect Govt ID"
+                return jsonify({"success": False, "message": f"Login Failed: {reason}"}), 401
         
-        return jsonify({"success": False, "message": "Invalid credentials or Govt ID"}), 401
+        return jsonify({"success": False, "message": "Login Failed: Official account not found"}), 401
     except Exception as e:
         print(f"Login error: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": False, "message": f"Server Error: {str(e)}"}), 500
 
 @app.route('/api/complaints')
 def get_all_complaints():

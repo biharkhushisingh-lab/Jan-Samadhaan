@@ -28,18 +28,28 @@ def create_department_officials():
         cursor.execute(query_check, (username,))
         exists = cursor.fetchone()
         
-        if not exists:
+        if exists:
+            # Force update existing official
+            try:
+                query_update = format_sql('''UPDATE officials SET 
+                               password_hash=?, govt_id=?, name=?, department=?, email=?, phone=? 
+                               WHERE username=?''')
+                cursor.execute(query_update,
+                            (hash_password(password), govt_id, name, dept, email, phone, username))
+                print(f"🔄 Updated: {username}")
+            except Exception as e:
+                print(f"❌ Failed to update {username}: {e}")
+        else:
+            # Create new
             try:
                 query_insert = format_sql('''INSERT INTO officials 
                                (username, password_hash, govt_id, name, department, email, phone) 
                                VALUES (?,?,?,?,?,?,?)''')
                 cursor.execute(query_insert,
                             (username, hash_password(password), govt_id, name, dept, email, phone))
-                print(f"✅ Created: {name} ({dept}) - User: {username} / Pass: {password}")
+                print(f"✅ Created: {username}")
             except Exception as e:
                 print(f"❌ Failed to create {username}: {e}")
-        else:
-            print(f"ℹ️  Exists: {name} ({dept})")
             
     conn.commit()
     conn.close()

@@ -13,7 +13,15 @@ def create_admin():
         cursor.execute(query_check)
         exists = cursor.fetchone()
         
-        if not exists:
+        if exists:
+            # Update existing admin to ensure credentials match latest list
+            print(f"🔄 Updating existing admin: admin@gov.in")
+            query_update = format_sql("UPDATE officials SET password_hash = ?, govt_id = ?, name = ?, department = ?, email = ?, phone = ? WHERE username = ?")
+            cursor.execute(query_update, (hash_password('admin123'), 'GOV123', 'System Admin', 'General_Admin_Dept', 'admin@gov.in', '9876543210', 'admin@gov.in'))
+            conn.commit()
+            print("✅ Admin user credentials force-reset successfully")
+        else:
+            print("🆕 Creating new admin: admin@gov.in")
             query_insert = format_sql('''INSERT INTO officials 
                            (username, password_hash, govt_id, name, department, email, phone) 
                            VALUES (?,?,?,?,?,?,?)''')
@@ -22,11 +30,6 @@ def create_admin():
                          'System Admin', 'General_Admin_Dept', 'admin@gov.in', '9876543210'))
             conn.commit()
             print("✅ Admin user created successfully")
-            print("Username: admin@gov.in")
-            print("Password: admin123")
-            print("Govt ID: GOV123")
-        else:
-            print("ℹ️ Admin user already exists")
         conn.close()
     except Exception as e:
         print(f"❌ Error: {e}")
