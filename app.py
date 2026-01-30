@@ -38,6 +38,18 @@ except ImportError:
 app = Flask(__name__)
 CORS(app)
 
+VERSION = "v2.0.4-DEBUG"
+
+@app.route('/api/health')
+def health():
+    db_type = "PostgreSQL" if is_postgres() else "SQLite"
+    return jsonify({
+        "status": "online",
+        "version": VERSION,
+        "database": db_type,
+        "time": datetime.now().isoformat()
+    }), 200
+
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'avi', 'mov', 'pdf', 'doc', 'docx'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -1034,9 +1046,9 @@ def official_login():
                 }), 200
             else:
                 reason = "Incorrect password" if not pw_match else "Incorrect Govt ID"
-                return jsonify({"success": False, "message": f"Login Failed: {reason}"}), 401
+                return jsonify({"success": False, "message": f"Login Failed ({VERSION}): {reason}"}), 401
         
-        return jsonify({"success": False, "message": "Login Failed: Official account not found"}), 401
+        return jsonify({"success": False, "message": f"Login Failed ({VERSION}): Official account not found"}), 401
     except Exception as e:
         print(f"Login error: {e}")
         return jsonify({"success": False, "message": f"Server Error: {str(e)}"}), 500
