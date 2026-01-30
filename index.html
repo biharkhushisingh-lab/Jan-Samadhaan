@@ -1,0 +1,2129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AI-Powered E-Grievance Platform</title>
+
+    <!-- Google Maps API -->
+    <!-- REPLACE 'YOUR_GOOGLE_MAPS_API_KEY' WITH YOUR ACTUAL API KEY -->
+    <script
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao&libraries=places&callback=initMap"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+            background-attachment: fixed;
+            color: #1f2937;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(to right, #ff9933 0%, #ffffff 50%, #138808 100%);
+            color: #1f2937;
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 3px solid #000080;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .ashoka-chakra {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #000080;
+            border-radius: 50%;
+            position: relative;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: rotate 20s linear infinite;
+        }
+
+        .ashoka-chakra::before {
+            content: '☸';
+            font-size: 32px;
+            color: #000080;
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .header h2 {
+            margin: 0;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #000080;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+        }
+
+        /* Language Selector */
+        .language-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .language-selector select {
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .language-selector select option {
+            background: #333;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            background: linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+            padding: 50px;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(20px);
+        }
+
+        #role-selection {
+            display: flex;
+            gap: 30px;
+            padding: 50px 0;
+        }
+
+        .role-card {
+            flex: 1;
+            padding: 45px 35px;
+            border-radius: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid transparent;
+            background: linear-gradient(white, white) padding-box,
+                linear-gradient(135deg, #6366f1, #8b5cf6, #d946ef) border-box;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .role-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .role-card:hover::before {
+            left: 100%;
+        }
+
+        .role-card:hover {
+            transform: translateY(-12px) scale(1.02);
+            box-shadow: 0 20px 50px rgba(99, 102, 241, 0.3), 0 0 0 2px rgba(99, 102, 241, 0.2);
+            border-color: #6366f1;
+        }
+
+        .role-card h3 {
+            font-size: 2rem;
+            margin: 15px 0;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6, #d946ef);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .role-card p {
+            color: #666;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+
+        .role-button {
+            padding: 16px 45px;
+            font-weight: 700;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 1.05rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+            letter-spacing: 0.5px;
+        }
+
+        .role-button:hover {
+            transform: scale(1.05) translateY(-2px);
+            box-shadow: 0 12px 30px rgba(99, 102, 241, 0.6);
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+        }
+
+        .step-form {
+            display: none;
+        }
+
+        .step-form.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .progress-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .progress-bar::before {
+            content: '';
+            position: absolute;
+            top: 25px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #e0e0e0;
+            z-index: 0;
+        }
+
+        .progress-step {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            text-align: center;
+        }
+
+        .progress-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            color: #999;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .progress-step.active .progress-circle {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            transform: scale(1.1);
+        }
+
+        .progress-label {
+            display: block;
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .progress-step.active .progress-label {
+            color: #667eea;
+            font-weight: 700;
+        }
+
+        h3 {
+            color: #6366f1;
+            border-bottom: 3px solid #6366f1;
+            padding-bottom: 12px;
+            margin-bottom: 30px;
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        label {
+            display: block;
+            margin: 18px 0 8px;
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.95rem;
+        }
+
+        .mandatory::after {
+            content: ' *';
+            color: #ef4444;
+            font-weight: 700;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: inherit;
+            background: #ffffff;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1), 0 2px 8px rgba(99, 102, 241, 0.08);
+            outline: none;
+            transform: translateY(-1px);
+        }
+
+        input:hover,
+        select:hover,
+        textarea:hover {
+            border-color: #a5b4fc;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .input-group input {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .input-group button {
+            flex-shrink: 0;
+            margin-bottom: 0;
+        }
+
+        button {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            padding: 15px 32px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1.05rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+            letter-spacing: 0.3px;
+        }
+
+        button:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 12px 28px rgba(99, 102, 241, 0.5);
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+        }
+
+        button:active {
+            transform: translateY(-1px) scale(1);
+        }
+
+        button:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Map Styles */
+        #map-container {
+            margin: 20px 0;
+            border: 3px solid #667eea;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        #map {
+            height: 400px;
+            width: 100%;
+        }
+
+        .map-info {
+            background: linear-gradient(135deg, #667eea15, #764ba215);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .map-info p {
+            margin: 5px 0;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .map-controls {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .map-controls button {
+            flex: 1;
+            padding: 10px;
+            font-size: 0.9rem;
+        }
+
+        .translation-notice {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(0, 255, 136, 0.1));
+            border-left: 4px solid #00d4ff;
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #0066cc;
+        }
+
+        .ai-analysis-box {
+            background: linear-gradient(135deg, #667eea15, #764ba215);
+            border-left: 5px solid #667eea;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .ai-analysis-box h4 {
+            margin: 0 0 15px;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ai-tag {
+            background: linear-gradient(45deg, #00d4ff, #00ff88);
+            color: #000;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .dashboard-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 25px 0;
+            border: 2px solid #e0e0e0;
+        }
+
+        .success-box {
+            background: linear-gradient(135deg, #00d4ff15, #00ff8815);
+            border-left: 5px solid #00ff88;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .status-resolved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-critical {
+            background: #f8d7da;
+            color: #721c24;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+
+        .p-high {
+            background: #ff4444;
+            color: white;
+        }
+
+        .p-medium {
+            background: #ffaa00;
+            color: white;
+        }
+
+        .p-low {
+            background: #44ff44;
+            color: #000;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .feedback-form {
+            background: #fff;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 20px 0;
+            border: 2px solid #667eea;
+        }
+
+        .star-rating {
+            display: flex;
+            gap: 10px;
+            font-size: 2rem;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .star {
+            cursor: pointer;
+            color: #ddd;
+            transition: all 0.2s;
+        }
+
+        .star:hover,
+        .star.active {
+            color: #ffc107;
+            transform: scale(1.2);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: slideDown 0.3s;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .close-modal {
+            float: right;
+            font-size: 2rem;
+            cursor: pointer;
+            color: #999;
+            transition: color 0.3s;
+        }
+
+        .close-modal:hover {
+            color: #667eea;
+        }
+
+        /* Voice-to-Text Styles */
+        .voice-input-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .voice-button {
+            position: absolute;
+            right: 10px;
+            bottom: 10px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a6f);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .voice-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.6);
+        }
+
+        .voice-button.listening {
+            background: linear-gradient(45deg, #ee5a6f, #f7bb97);
+            animation: voicePulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes voicePulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+            }
+
+            50% {
+                transform: scale(1.15);
+                box-shadow: 0 10px 30px rgba(255, 107, 107, 0.8);
+            }
+        }
+
+        .voice-status {
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(238, 90, 111, 0.1));
+            border-left: 4px solid #ff6b6b;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #d63031;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .voice-status.active {
+            display: flex;
+        }
+
+        .voice-wave {
+            display: inline-block;
+            width: 4px;
+            height: 20px;
+            background: #ff6b6b;
+            margin: 0 2px;
+            animation: wave 1.2s ease-in-out infinite;
+        }
+
+        .voice-wave:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .voice-wave:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        .voice-wave:nth-child(4) {
+            animation-delay: 0.3s;
+        }
+
+        @keyframes wave {
+
+            0%,
+            100% {
+                height: 20px;
+            }
+
+            50% {
+                height: 5px;
+            }
+        }
+
+        .voice-info-box {
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.05), rgba(238, 90, 111, 0.05));
+            border: 2px dashed #ff6b6b;
+            padding: 15px;
+            border-radius: 12px;
+            margin: 15px 0;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .voice-info-box strong {
+            color: #ff6b6b;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .accessibility-badge {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a6f);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            display: inline-block;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="header">
+        <div class="header-title">
+            <div class="ashoka-chakra"></div>
+            <div>
+                <h2 id="header-title">JAN SAMADHAAN</h2>
+                <p style="margin: 0; font-size: 0.85rem; color: #000080; font-weight: 600;">जन समाधान
+                </p>
+            </div>
+        </div>
+
+        <div class="language-selector">
+            <div id="google_translate_element"></div>
+            <script type="text/javascript">
+                function googleTranslateElementInit() {
+                    new google.translate.TranslateElement({ pageLanguage: 'en', layout: google.translate.TranslateElement.InlineLayout.SIMPLE }, 'google_translate_element');
+                }
+            </script>
+            <script type="text/javascript"
+                src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="role-selection">
+            <div class="role-card" onclick="showStep('citizen-verification')">
+                <h3>👤 Citizen Portal</h3>
+                <p>File complaints with AI-powered priority assignment, real-time SLA tracking, intelligent department
+                    routing, and multilingual support.</p>
+                <button class="role-button">CITIZEN LOGIN →</button>
+            </div>
+
+            <div class="role-card" onclick="window.location.href='official.html'">
+                <h3>🏛️ Official Dashboard</h3>
+                <p>Access AI-analyzed complaints with map visualization, auto-translation, escalation alerts, and
+                    performance analytics.</p>
+                <button class="role-button">OFFICIAL LOGIN→</button>
+            </div>
+        </div>
+
+        <div id="progress-bar" style="display: none;" class="progress-bar">
+            <div class="progress-step active" id="p-step-1">
+                <span class="progress-circle">1</span>
+                <span class="progress-label">Verification</span>
+            </div>
+            <div class="progress-step" id="p-step-2">
+                <span class="progress-circle">2</span>
+                <span class="progress-label">Details</span>
+            </div>
+            <div class="progress-step" id="p-step-3">
+                <span class="progress-circle">3</span>
+                <span class="progress-label">Dashboard</span>
+            </div>
+        </div>
+
+        <form id="citizen-verification" class="step-form">
+            <h3>🔐 Identity Verification / Login</h3>
+
+            <div id="translation-notice-1" class="translation-notice" style="display:none;">
+                🌐 Auto-translation enabled: Your complaint will be translated to English for officials
+            </div>
+
+            <label for="name" class="mandatory">Full Legal Name:</label>
+            <input type="text" id="name" required placeholder="As per government ID">
+
+            <label for="public-id" class="mandatory">Public ID (Aadhar/Voter/PAN):</label>
+            <div class="input-group">
+                <input type="text" id="public-id" placeholder="10-12 alphanumeric characters" pattern="[0-9A-Z]{10,12}"
+                    maxlength="12" required>
+                <button type="button" onclick="verifyId()">Verify</button>
+            </div>
+            <p id="id-status" style="color:#e74c3c; margin-top:5px; margin-bottom:20px; font-weight:600;">⏳ Awaiting
+                Verification</p>
+
+            <label for="phone" class="mandatory">Phone Number:</label>
+            <div class="input-group">
+                <input type="tel" id="phone" placeholder="10 digit mobile number" pattern="[0-9]{10}" maxlength="10"
+                    required>
+                <button type="button" onclick="sendOtp('phone')">Send OTP</button>
+            </div>
+            <div class="input-group">
+                <input type="text" id="phone-otp" placeholder="Enter 6-digit OTP" maxlength="6" pattern="[0-9]{6}"
+                    inputmode="numeric">
+                <button type="button" onclick="verifyOtp('phone')">Verify OTP</button>
+            </div>
+
+            <label for="email" class="mandatory">Email Address:</label>
+            <div class="input-group">
+                <input type="email" id="email" placeholder="your.email@example.com" required>
+                <button type="button" onclick="sendOtp('email')">Send OTP</button>
+            </div>
+            <div class="input-group">
+                <input type="text" id="email-otp" placeholder="Enter 6-digit OTP" maxlength="6" pattern="[0-9]{6}"
+                    inputmode="numeric">
+                <button type="button" onclick="verifyOtp('email')">Verify OTP</button>
+            </div>
+
+            <button type="button" id="verify-continue-btn" onclick="checkHistoryAndContinue()">Continue →</button>
+        </form>
+
+        <form id="complaint-submission" class="step-form">
+            <h3>📝 Complaint Details</h3>
+
+            <div id="translation-notice-2" class="translation-notice" style="display:none;">
+                🌐 You can type in your selected language. Officials will see it in English.
+            </div>
+
+            <label for="location-coords" class="mandatory">📍 Select Exact Location on Map:</label>
+
+            <div class="map-info">
+                <p>🗺️ Click on the map to pinpoint the exact location of your complaint</p>
+                <p id="selected-location" style="color: #667eea; font-weight: bold;">No location selected yet</p>
+            </div>
+
+            <div class="map-controls">
+                <button type="button" onclick="getCurrentLocation()">📍 Use My Current Location</button>
+                <button type="button" onclick="searchLocation()">🔍 Search Address</button>
+            </div>
+
+            <div id="map-container">
+                <div id="map"></div>
+            </div>
+
+            <input type="hidden" id="latitude" name="latitude">
+            <input type="hidden" id="longitude" name="longitude">
+            <input type="text" id="location-address"
+                placeholder="Location will be auto-filled from map or enter manually" style="margin-top: 15px;">
+
+            <label for="category">Category: <span style="color: #667eea; font-size: 0.9rem;">(Optional - AI will detect
+                    if not selected)</span></label>
+            <select id="category">
+                <option value="">-- Select Category --</option>
+                <option value="Roads_Infrastructure">🛣️ Road Maintenance</option>
+                <option value="Water_Supply">💧 Water Supply</option>
+                <option value="Sanitation">🗑️ Sanitation</option>
+                <option value="Public_Safety">🚨 Public Safety</option>
+                <option value="Illegal_Construction">🏗️ Illegal Construction</option>
+                <option value="Public_Transport">🚌 Public Transport</option>
+                <option value="Health_Services">🏥 Health Services</option>
+                <option value="Education">🎓 Education Facilities</option>
+                <option value="Noise_Pollution">🔊 Noise/Pollution</option>
+                <option value="Power">⚡ Electricity</option>
+                <option value="Drainage">🚰 Drainage/Sewerage</option>
+                <option value="Parks">🌳 Parks & Public Areas</option>
+                <option value="Documents">📄 Document Delays</option>
+                <option value="Misconduct">⚖️ Official Misconduct</option>
+                <option value="Animals">🐕 Stray Animals</option>
+                <option value="Trees">🌲 Illegal Tree Cutting</option>
+                <option value="Traffic">🚦 Traffic Management</option>
+                <option value="Taxes">💰 Tax Issues</option>
+                <option value="Social_Welfare">🤝 Social Welfare</option>
+                <option value="Cyber">💻 Cyber/IT Issues</option>
+                <option value="Other">📋 Other</option>
+            </select>
+
+            <label for="description" class="mandatory">Detailed Description:</label>
+            <div class="voice-info-box" style="margin-top: 15px;">
+                <strong>🎙️ Voice Input Available! <span class="accessibility-badge">BHARAT
+                        ACCESSIBILITY</span></strong>
+                Can'''t type? Click the microphone button and speak your complaint in your language.
+            </div>
+
+            <div id="voice-status" class="voice-status">
+                🎤 Listening...
+                <span class="voice-wave"></span>
+                <span class="voice-wave"></span>
+                <span class="voice-wave"></span>
+                <span class="voice-wave"></span>
+                (Click mic again to stop)
+            </div>
+
+            <div class="voice-input-container">
+                <textarea id="description" rows="6" required
+                    placeholder="Describe the issue in detail. Type in your language - auto-translation will help officials understand. Use words like 'urgent', 'dangerous', 'emergency' for faster response."></textarea>
+                <button type="button" class="voice-button" onclick="toggleVoiceInput()"
+                    title="Click to speak your complaint">🎤</button>
+            </div>
+
+            <label for="media-upload" class="mandatory">Proof (Photo/Video):</label>
+            <input type="file" id="media-upload" accept="image/*,video/*" required>
+            <p style="font-size: 0.85rem; color: #999; margin-top: -15px;">Max 16MB • PNG, JPG, MP4, AVI supported</p>
+
+            <label style="display: block; margin: 25px 0 15px; font-weight: 600;">Submission Type:</label>
+            <div style="display: flex; gap: 30px;">
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <input type="radio" name="submission-type" value="verified-id" checked
+                        style="width: auto; margin: 0;">
+                    <span>Verified Submission</span>
+                </label>
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <input type="radio" name="submission-type" value="anonymous" style="width: auto; margin: 0;">
+                    <span>Anonymous</span>
+                </label>
+            </div>
+
+            <button type="button" id="submit-btn" onclick="submitComplaint()" style="margin-top: 30px;">🤖 Submit with
+                AI Analysis</button>
+        </form>
+
+        <div id="citizen-dashboard" class="step-form">
+            <h3 id="dashboard-greeting">Welcome, Citizen</h3>
+
+            <div id="new-submission-confirmation" class="dashboard-section success-box" style="display: none;">
+                <h4>✅ Complaint Successfully Submitted!</h4>
+                <div class="ai-analysis-box">
+                    <h4>🤖 AI Analysis Complete <span class="ai-tag">POWERED BY GEMINI</span></h4>
+                    <p><strong>Tracking ID:</strong> <span id="last-tracking-id"
+                            style="font-family: monospace; font-size: 1.2rem; color: #667eea;">N/A</span></p>
+                    <p><strong>AI-Calculated Priority:</strong> <span id="last-priority"
+                            class="priority-badge p-high">N/A</span></p>
+                    <p><strong>Assigned Department:</strong> <span id="last-department">N/A</span></p>
+                    <p><strong>SLA Deadline:</strong> <span id="last-sla">N/A</span></p>
+                    <p><strong>AI Sentiment Analysis:</strong> <span id="last-sentiment">N/A</span></p>
+                    <p id="translation-confirmation" style="display:none; color: #00d4ff; font-weight: 600;">
+                        🌐 Your complaint has been auto-translated for officials
+                    </p>
+                </div>
+            </div>
+
+            <div class="dashboard-section">
+                <h4>📊 My Complaints History</h4>
+                <button onclick="loadComplaints()" style="margin-bottom: 20px; background: #28a745;">🔄 Refresh
+                    Status</button>
+                <table id="complaint-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Category</th>
+                            <th>Status</th>
+                            <th>Priority</th>
+                            <th>SLA</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="complaint-tbody">
+                        <tr>
+                            <td colspan="6" style="text-align: center;">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <button onclick="showStep('complaint-submission')" style="background: #28a745;">➕ File New
+                Complaint</button>
+
+            <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid #e0e0e0; text-align: center;">
+                <p style="color: #666; margin-bottom: 15px; font-size: 0.95rem;">
+                    Want to file a complaint as a different user or access official portal?
+                </p>
+                <button onclick="returnToLoginPage()"
+                    style="background: linear-gradient(45deg, #6c757d, #495057); font-size: 1rem; padding: 14px 35px;">
+                    🏠 Return to Login Page
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedback-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeFeedback()">&times;</span>
+            <h3>⭐ Rate This Resolution</h3>
+            <p>Complaint ID: <strong id="feedback-complaint-id"></strong></p>
+
+            <div class="star-rating">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+
+            <label>Comments (optional):</label>
+            <textarea id="feedback-comment" rows="4" placeholder="Share your experience..."></textarea>
+
+            <button onclick="submitFeedback()" style="width: 100%; margin-top: 20px;">Submit Feedback</button>
+        </div>
+    </div>
+
+
+
+    <script>
+        const API = ''; // Use relative path for production
+        let userName = '';
+        let userPhone = '';
+        let userEmail = '';
+        let idVerified = false;
+        let phoneOtpVerified = false;
+        let emailOtpVerified = false;
+        let currentFeedbackId = null;
+        let selectedRating = 0;
+        let selectedLanguage = 'en';
+
+        // Map variables
+        let map = null;
+        let marker = null;
+        let selectedLat = null;
+        let selectedLon = null;
+
+        // Store the generated OTPs for verification
+        let phoneOtp = null;
+        let emailOtp = null;
+
+        function changeLanguage() {
+            selectedLanguage = document.getElementById('language-select').value;
+            console.log('Language changed to:', selectedLanguage);
+
+            // Update header title based on language
+            const headerTitles = {
+                en: 'Bharat E-Grievance System', hi: 'भारत ई-शिकायत प्रणाली',
+                ta: 'பாரத மின்-குறைதீர்ப்பு அமைப்பு', bn: 'ভারত ই-অভিযোগ ব্যবস্থা',
+                mr: 'भारत ई-तक्रार प्रणाली', te: 'భారత్ ఈ-ఫిర్యాదు వ్యవస్థ',
+                gu: 'ભારત ઈ-ફરિયાદ સિસ્ટમ', kn: 'ಭಾರತ ಇ-ದೂರು ವ್ಯವಸ್ಥೆ',
+                ml: 'ഭാരത ഇ-പരാതി സംവിധാനം', pa: 'ਭਾਰਤ ਈ-ਸ਼ਿਕਾਇਤ ਪ੍ਰਣਾਲੀ',
+                or: 'ଭାରତ ଇ-ଅଭିଯୋଗ ବ୍ୟବସ୍ଥା', as: 'ভাৰত ই-অভিযোগ ব্যৱস্থা', ur: 'بھارت ای شکایت نظام'
+            };
+            const headerElem = document.getElementById('header-title');
+            if (headerElem && headerTitles[selectedLanguage]) {
+                headerElem.textContent = headerTitles[selectedLanguage];
+            }
+            // Show/hide translation notices
+            ['translation-notice-1', 'translation-notice-2'].forEach(id => {
+                const e = document.getElementById(id);
+                if (e) e.style.display = selectedLanguage !== 'en' ? 'block' : 'none';
+            });
+            console.log('Language updated:', selectedLanguage);
+        }
+
+        function initMap() {
+            const defaultLat = 20.5937;
+            const defaultLon = 78.9629;
+
+            // Initialize Google Map
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 5,
+                center: { lat: defaultLat, lng: defaultLon },
+                mapId: "DEMO_MAP_ID", // Optional: Use a specific map ID if needed
+            });
+
+            // Add click listener
+            map.addListener("click", (e) => {
+                selectLocation(e.latLng.lat(), e.latLng.lng());
+            });
+
+            // Geolocation
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        map.setCenter({ lat: lat, lng: lon });
+                        map.setZoom(13);
+                    },
+                    (error) => {
+                        console.log("Geolocation error:", error);
+                    }
+                );
+            }
+        }
+
+        function selectLocation(lat, lon) {
+            selectedLat = lat;
+            selectedLon = lon;
+
+            document.getElementById('latitude').value = lat;
+            document.getElementById('longitude').value = lon;
+
+            // Remove existing marker if any
+            if (marker) {
+                marker.setMap(null);
+            }
+
+            // Create new marker
+            marker = new google.maps.Marker({
+                position: { lat: lat, lng: lon },
+                map: map,
+                title: "Selected Location",
+                animation: google.maps.Animation.DROP
+            });
+
+            // InfoWindow
+            const infoWindow = new google.maps.InfoWindow({
+                content: `<b>Selected Location</b><br>Lat: ${lat.toFixed(6)}<br>Lon: ${lon.toFixed(6)}`
+            });
+            infoWindow.open(map, marker);
+
+            document.getElementById('selected-location').textContent =
+                `✓ Location selected: ${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+            document.getElementById('selected-location').style.color = '#28a745';
+
+            reverseGeocode(lat, lon);
+
+            // Check for duplicate complaints at this location
+            checkDuplicateComplaints(lat, lon);
+        }
+
+        async function checkDuplicateComplaints(lat, lon) {
+            try {
+                const category = document.getElementById('category').value;
+
+                const response = await fetch(API + '/api/check_duplicates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        latitude: lat,
+                        longitude: lon,
+                        category: category,
+                        radius: 20  // 20 meters
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.duplicates_found) {
+                    showDuplicateWarning(data);
+                } else {
+                    hideDuplicateWarning();
+                }
+            } catch (error) {
+                console.error('Error checking duplicates:', error);
+                // Don't show error to user, just proceed
+            }
+        }
+
+        function showDuplicateWarning(data) {
+            // Remove existing warning if any
+            let existingWarning = document.getElementById('duplicate-warning');
+            if (existingWarning) {
+                existingWarning.remove();
+            }
+
+            // Create warning box
+            const warningDiv = document.createElement('div');
+            warningDiv.id = 'duplicate-warning';
+            warningDiv.style.cssText = `
+            background: linear-gradient(135deg, #ff9933, #ffcc00);
+            border: 3px solid #ff6600;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 5px 20px rgba(255, 102, 0, 0.3);
+            animation: shake 0.5s;
+        `;
+
+            let html = `
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                <span style="font-size: 3rem;">⚠️</span>
+                <div>
+                    <h4 style="margin: 0; color: #000; font-size: 1.3rem;">Duplicate Alert!</h4>
+                    <p style="margin: 5px 0 0 0; color: #333; font-weight: 600;">
+                        ${data.count} similar complaint${data.count > 1 ? 's' : ''} found within ${data.radius_checked} meters
+                    </p>
+                </div>
+            </div>
+        `;
+
+            if (data.nearby_complaints && data.nearby_complaints.length > 0) {
+                html += `<div style="background: rgba(255,255,255,0.9); padding: 15px; border-radius: 10px; margin-top: 15px;">`;
+                html += `<p style="font-weight: bold; color: #000; margin-bottom: 10px;">📋 Existing Complaints:</p>`;
+
+                data.nearby_complaints.forEach((complaint, idx) => {
+                    const date = new Date(complaint.created_at).toLocaleDateString();
+                    html += `
+                    <div style="background: white; padding: 12px; margin-bottom: 10px; border-radius: 8px; border-left: 4px solid #ff6600;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <strong style="color: #667eea;">${complaint.id}</strong>
+                                <span style="background: #e3f2fd; padding: 3px 8px; border-radius: 10px; font-size: 0.85rem; margin-left: 8px;">
+                                    ${complaint.category}
+                                </span>
+                                <p style="margin: 8px 0; color: #555; font-size: 0.95rem;">${complaint.description}</p>
+                                <small style="color: #888;">
+                                    📅 ${date} • 📍 ${complaint.distance}m away • 
+                                    <span style="color: #ff6600; font-weight: 600;">${complaint.status}</span>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                });
+                html += `</div>`;
+            }
+
+            html += `
+            <div style="margin-top: 15px; padding: 12px; background: rgba(255,255,255,0.8); border-radius: 8px;">
+                <p style="margin: 0; color: #000; font-weight: 600; font-size: 0.95rem;">
+                    💡 <strong>Suggestion:</strong> Someone has already reported this issue. 
+                    Your complaint may be a duplicate and could slow down resolution.
+                </p>
+                <p style="margin: 8px 0 0 0; color: #555; font-size: 0.9rem;">
+                    You can still submit if you believe this is a different issue.
+                </p>
+            </div>
+        `;
+
+            warningDiv.innerHTML = html;
+
+            // Insert before the category field
+            const categoryLabel = document.querySelector('label[for="category"]');
+            categoryLabel.parentNode.insertBefore(warningDiv, categoryLabel);
+
+            // Add shake animation CSS if not exists
+            if (!document.getElementById('shake-animation')) {
+                const style = document.createElement('style');
+                style.id = 'shake-animation';
+                style.textContent = `
+                @keyframes shake {
+                    0%, 100% { transform: translateX(0); }
+                    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+                    20%, 40%, 60%, 80% { transform: translateX(5px); }
+                }
+            `;
+                document.head.appendChild(style);
+            }
+
+            // Scroll to warning
+            warningDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function hideDuplicateWarning() {
+            const warning = document.getElementById('duplicate-warning');
+            if (warning) {
+                warning.remove();
+            }
+        }
+
+        function reverseGeocode(lat, lon) {
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.display_name) {
+                        document.getElementById('location-address').value = data.display_name;
+                    }
+                })
+                .catch(error => {
+                    console.log('Reverse geocoding failed:', error);
+                    document.getElementById('location-address').value = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+                });
+        }
+
+        function getCurrentLocation() {
+            if (!navigator.geolocation) {
+                alert('Geolocation is not supported by your browser');
+                return;
+            }
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '🔄 Getting location...';
+
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    map.setCenter({ lat: lat, lng: lon });
+                    map.setZoom(16);
+                    selectLocation(lat, lon);
+                    btn.disabled = false;
+                    btn.textContent = '📍 Use My Current Location';
+                },
+                function (error) {
+                    alert('Could not get your location: ' + error.message);
+                    btn.disabled = false;
+                    btn.textContent = '📍 Use My Current Location';
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
+
+        function searchLocation() {
+            const address = prompt('Enter address or place name (e.g., "Mumbai", "Connaught Place", "Delhi Airport"):');
+            if (!address) return;
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '🔍 Searching...';
+
+            // Try multiple search strategies for better results
+            const searches = [
+                // Strategy 1: India-specific search
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=in&limit=10`,
+                // Strategy 2: Global search (fallback)
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=10`
+            ];
+
+            // Try first search strategy
+            fetch(searches[0])
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        handleSearchResults(data, btn);
+                    } else {
+                        // Try global search if India search fails
+                        console.log('No results in India, trying global search...');
+                        fetch(searches[1])
+                            .then(response => response.json())
+                            .then(globalData => {
+                                if (globalData.length > 0) {
+                                    handleSearchResults(globalData, btn);
+                                } else {
+                                    alert('❌ Location not found. Please try:\n\n' +
+                                        '• Adding more details (e.g., "Mumbai Station" instead of just "Station")\n' +
+                                        '• Using landmark names\n' +
+                                        '• Clicking directly on the map\n' +
+                                        '• Using "My Current Location" button');
+                                    btn.disabled = false;
+                                    btn.textContent = '🔍 Search Address';
+                                }
+                            })
+                            .catch(error => {
+                                alert('❌ Search failed: ' + error.message);
+                                btn.disabled = false;
+                                btn.textContent = '🔍 Search Address';
+                            });
+                    }
+                })
+                .catch(error => {
+                    alert('❌ Search failed: ' + error.message + '\n\nPlease check your internet connection or try clicking on the map.');
+                    btn.disabled = false;
+                    btn.textContent = '🔍 Search Address';
+                });
+        }
+
+        function handleSearchResults(data, btn) {
+            if (data.length > 1) {
+                // Multiple results - let user choose
+                let options = '📍 Multiple locations found. Choose one:\n\n';
+                data.slice(0, 7).forEach((item, idx) => {
+                    options += `${idx + 1}. ${item.display_name}\n`;
+                });
+                options += '\nEnter number (1-' + Math.min(7, data.length) + '):';
+
+                const choice = prompt(options);
+                const index = parseInt(choice) - 1;
+
+                if (index >= 0 && index < data.length) {
+                    const selected = data[index];
+                    const lat = parseFloat(selected.lat);
+                    const lon = parseFloat(selected.lon);
+                    map.setCenter({ lat: lat, lng: lon });
+                    map.setZoom(15);
+                    selectLocation(lat, lon);
+                    alert('✅ Location set: ' + selected.display_name);
+                } else {
+                    alert('❌ Invalid selection. Using first result.');
+                    const lat = parseFloat(data[0].lat);
+                    const lon = parseFloat(data[0].lon);
+                    map.setCenter({ lat: lat, lng: lon });
+                    map.setZoom(15);
+                    selectLocation(lat, lon);
+                }
+            } else {
+                // Single result - use it directly
+                const lat = parseFloat(data[0].lat);
+                const lon = parseFloat(data[0].lon);
+                map.setCenter({ lat: lat, lng: lon });
+                map.setZoom(15);
+                selectLocation(lat, lon);
+                alert('✅ Location found: ' + data[0].display_name);
+            }
+            btn.disabled = false;
+            btn.textContent = '🔍 Search Address';
+        }
+
+        function showStep(formId) {
+            document.querySelectorAll('.step-form').forEach(f => f.classList.remove('active'));
+            document.getElementById(formId).classList.add('active');
+
+            document.getElementById('role-selection').style.display = 'none';
+            document.getElementById('progress-bar').style.display = 'flex';
+
+            if (formId === 'complaint-submission' && !map) {
+                setTimeout(initMap, 100);
+            }
+
+            const steps = {
+                'citizen-verification': 1,
+                'complaint-submission': 2,
+                'citizen-dashboard': 3
+            };
+
+            document.querySelectorAll('.progress-step').forEach((s, i) => {
+                s.classList.toggle('active', i < steps[formId]);
+            });
+        }
+
+        function returnToLoginPage() {
+            // Confirm before returning to login
+            const confirmed = confirm('🔄 Return to Login Page?\n\nThis will clear your current session. You can login as a new citizen or access the official portal.\n\nClick OK to continue.');
+
+            if (confirmed) {
+                // Clear all user data
+                userName = '';
+                userPhone = '';
+                userEmail = '';
+                idVerified = false;
+                phoneOtpVerified = false;
+                emailOtpVerified = false;
+                phoneOtp = null;
+                emailOtp = null;
+
+                // Reset map data
+                selectedLat = null;
+                selectedLon = null;
+                if (marker) {
+                    marker.setMap(null);
+                    marker = null;
+                }
+
+                // Clear all forms
+                document.getElementById('citizen-verification').reset();
+                document.getElementById('complaint-submission').reset();
+
+                // Reset verification status display
+                document.getElementById('id-status').textContent = '⏳ Awaiting Verification';
+                document.getElementById('id-status').style.color = '#e74c3c';
+
+                // Reset OTP fields styling
+                const otpFields = ['phone-otp', 'email-otp'];
+                otpFields.forEach(id => {
+                    const field = document.getElementById(id);
+                    field.style.borderColor = '#e0e0e0';
+                    field.style.backgroundColor = 'white';
+                });
+
+                // Hide all step forms
+                document.querySelectorAll('.step-form').forEach(f => f.classList.remove('active'));
+
+                // Show role selection screen
+                document.getElementById('role-selection').style.display = 'flex';
+                document.getElementById('progress-bar').style.display = 'none';
+
+                // Hide success confirmation
+                document.getElementById('new-submission-confirmation').style.display = 'none';
+
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                console.log('✅ Returned to login page - all data cleared');
+            }
+        }
+
+        function verifyId() {
+            const id = document.getElementById('public-id').value;
+            if (id.length >= 10) {
+                idVerified = true;
+                document.getElementById('id-status').textContent = '✅ ID Verified';
+                document.getElementById('id-status').style.color = '#28a745';
+                alert('✅ ID Verified Successfully!');
+            } else {
+                alert('❌ Invalid ID format');
+            }
+        }
+
+        function sendOtp(type) {
+            const field = document.getElementById(type);
+            if (!field.value) {
+                alert(`Please enter your ${type}`);
+                return;
+            }
+
+            const mockOtp = Math.floor(100000 + Math.random() * 900000);
+
+            // Store the OTP for verification
+            if (type === 'phone') {
+                phoneOtp = mockOtp.toString();
+                phoneOtpVerified = false; // Reset verification status
+            } else if (type === 'email') {
+                emailOtp = mockOtp.toString();
+                emailOtpVerified = false; // Reset verification status
+            }
+
+            alert(`📱 Mock OTP: ${mockOtp}\n\n(In production: sent via SMS/Email)\n\nPlease enter this OTP in the field below.`);
+        }
+
+        function verifyOtp(type) {
+            const otpField = document.getElementById(type + '-otp');
+            const enteredOtp = otpField.value.trim();
+
+            if (!enteredOtp) {
+                alert('⚠️ Please enter the OTP');
+                return false;
+            }
+
+            if (enteredOtp.length !== 6) {
+                alert('⚠️ OTP must be 6 digits');
+                return false;
+            }
+
+            const correctOtp = type === 'phone' ? phoneOtp : emailOtp;
+
+            if (!correctOtp) {
+                alert('⚠️ Please send OTP first');
+                return false;
+            }
+
+            if (enteredOtp === correctOtp) {
+                if (type === 'phone') {
+                    phoneOtpVerified = true;
+                } else {
+                    emailOtpVerified = true;
+                }
+                alert('✅ OTP Verified Successfully!');
+                otpField.style.borderColor = '#28a745';
+                otpField.style.backgroundColor = '#d4edda';
+                return true;
+            } else {
+                alert('❌ Invalid OTP. Please try again.');
+                otpField.style.borderColor = '#dc3545';
+                otpField.style.backgroundColor = '#f8d7da';
+                return false;
+            }
+        }
+
+        async function checkHistoryAndContinue() {
+            if (!idVerified || !phoneOtpVerified || !emailOtpVerified) {
+                alert('⚠️ Please complete all verification steps');
+                return;
+            }
+
+            userName = document.getElementById('name').value;
+            userPhone = document.getElementById('phone').value;
+            userEmail = document.getElementById('email').value;
+
+            const btn = document.getElementById('verify-continue-btn');
+            btn.disabled = true;
+            btn.innerHTML = 'Checking history... <span class="spinner"></span>';
+
+            try {
+                const res = await fetch(API + '/api/verify_citizen', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: userName, email: userEmail, phone: userPhone })
+                });
+
+                if (res.ok) {
+                    showStep('complaint-submission');
+                    document.getElementById('dashboard-greeting').textContent = `Welcome, ${userName}`;
+                } else {
+                    alert('❌ Verification failed');
+                }
+            } catch (e) {
+                alert('❌ Server error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Continue →';
+            }
+        }
+
+        async function submitComplaint() {
+            if (!selectedLat || !selectedLon) {
+                alert('⚠️ Please select a location on the map');
+                return;
+            }
+
+            const btn = document.getElementById('submit-btn');
+            const orig = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '🤖 Analyzing with AI... <span class="spinner"></span>';
+
+            try {
+                const fd = new FormData();
+                fd.append('citizen_name', userName);
+                fd.append('citizen_email', userEmail);
+                fd.append('citizen_phone', userPhone);
+                fd.append('citizen_address', document.getElementById('location-address').value);
+                fd.append('latitude', selectedLat);
+                fd.append('longitude', selectedLon);
+                fd.append('location_address', document.getElementById('location-address').value);
+                fd.append('category', document.getElementById('category').value);
+                fd.append('description', document.getElementById('description').value);
+                fd.append('citizen_language', selectedLanguage);
+
+                const file = document.getElementById('media-upload').files[0];
+                if (file) fd.append('media_upload', file);
+
+                const res = await fetch(API + '/api/submit_complaint', { method: 'POST', body: fd });
+
+                if (!res.ok) {
+                    if (res.status === 413) {
+                        alert('❌ File too large. Maximum size is 16MB.');
+                        return;
+                    }
+                    const text = await res.text();
+                    try {
+                        const err = JSON.parse(text);
+                        alert('❌ Error: ' + (err.message || 'Server error'));
+                    } catch (e) {
+                        alert('❌ Server Error (' + res.status + '): ' + text.substring(0, 100)); // Show preview of HTML error
+                    }
+                    return;
+                }
+
+                const data = await res.json();
+
+                if (data.success) {
+                    document.getElementById('last-tracking-id').textContent = data.tracking_id;
+                    document.getElementById('last-priority').textContent = `P-${data.priority}`;
+                    document.getElementById('last-priority').className = `priority-badge ${data.priority <= 3 ? 'p-high' : data.priority <= 7 ? 'p-medium' : 'p-low'}`;
+                    document.getElementById('last-department').textContent = data.department.replace(/_/g, ' ');
+                    document.getElementById('last-sla').textContent = `${data.sla_hours}h (${data.sla_deadline})`;
+                    document.getElementById('last-sentiment').textContent = data.ai_sentiment;
+
+                    if (data.translation_done) {
+                        document.getElementById('translation-confirmation').style.display = 'block';
+                    }
+
+                    // Show AI routing notification if department was auto-detected
+                    if (data.ai_routed) {
+                        alert('✅ Complaint submitted!\n\n🤖 AI automatically detected and routed your complaint to: ' + data.department.replace(/_/g, ' '));
+                    }
+
+                    document.getElementById('new-submission-confirmation').style.display = 'block';
+                    showStep('citizen-dashboard');
+                    document.getElementById('complaint-submission').reset();
+
+                    // Reset map
+                    selectedLat = null;
+                    selectedLon = null;
+                    if (marker) {
+                        marker.setMap(null);
+                        marker = null;
+                    }
+                    document.getElementById('selected-location').textContent = 'No location selected yet';
+                    document.getElementById('selected-location').style.color = '#667eea';
+
+                    // Load complaints history
+                    loadComplaints();
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('❌ Request Failed: ' + e.message + '\n\nPlease checks your network connection or backend status.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = orig;
+            }
+        }
+
+        async function loadComplaints() {
+            const tbody = document.getElementById('complaint-tbody');
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">🔄 Loading...</td></tr>';
+
+            try {
+                const res = await fetch(API + '/api/complaints');
+                const data = await res.json();
+
+                if (data.success) {
+                    const mine = data.complaints.filter(c => c.citizen_phone === userPhone);
+                    tbody.innerHTML = '';
+
+                    if (mine.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999;">No complaints found</td></tr>';
+                        return;
+                    }
+
+                    mine.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                    mine.forEach(c => {
+                        const row = tbody.insertRow();
+                        const statusClass = c.status.includes('Resolved') ? 'status-resolved' :
+                            c.escalation_level === 'CRITICAL' ? 'status-critical' : 'status-pending';
+                        const priClass = c.priority <= 3 ? 'p-high' : c.priority <= 7 ? 'p-medium' : 'p-low';
+
+                        let actionBtn = '';
+                        if (c.status.includes('Resolved') && !c.citizen_feedback_rating) {
+                            actionBtn = `<button onclick="openFeedback('${c.id}')" style="padding: 6px 12px; font-size: 0.85rem;">⭐ Rate</button>`;
+                        } else if (c.citizen_feedback_rating) {
+                            actionBtn = `<span style="color: #28a745;">✅ Rated ${c.citizen_feedback_rating}/5</span>`;
+                        } else if (!c.status.includes('Resolved')) {
+                            actionBtn = `<span style="color: #999; font-size:0.8rem;">Processing</span>`;
+                        }
+
+                        row.innerHTML = `
+                        <td><code>${c.id}</code></td>
+                        <td>${c.category}</td>
+                        <td><span class="status-badge ${statusClass}">${c.status}</span></td>
+                        <td><span class="priority-badge ${priClass}">P-${c.priority}</span></td>
+                        <td>${c.escalation_level !== 'NONE' ? `<span class="status-badge status-critical">${c.escalation_level}</span>` : `${c.sla_hours}h`}</td>
+                        <td>${actionBtn}</td>
+                    `;
+                    });
+                }
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #e74c3c;">Failed to load</td></tr>';
+            }
+        }
+
+        function openFeedback(id) {
+            currentFeedbackId = id;
+            document.getElementById('feedback-complaint-id').textContent = id;
+            document.getElementById('feedback-modal').style.display = 'block';
+            selectedRating = 0;
+            document.querySelectorAll('.star').forEach(s => s.classList.remove('active'));
+            document.getElementById('feedback-comment').value = '';
+        }
+
+        function closeFeedback() {
+            document.getElementById('feedback-modal').style.display = 'none';
+        }
+
+        document.querySelectorAll('.star').forEach(star => {
+            star.addEventListener('click', function () {
+                selectedRating = parseInt(this.dataset.value);
+                document.querySelectorAll('.star').forEach((s, i) => {
+                    s.classList.toggle('active', i < selectedRating);
+                });
+            });
+        });
+
+        async function submitFeedback() {
+            if (selectedRating === 0) {
+                alert('Please select a rating');
+                return;
+            }
+
+            try {
+                const res = await fetch(API + `/api/complaint/${currentFeedbackId}/feedback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        rating: selectedRating,
+                        comment: document.getElementById('feedback-comment').value
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    alert('✅ Thank you for your feedback!');
+                    closeFeedback();
+                    loadComplaints();
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            } catch (e) {
+                alert('❌ Feedback submission failed');
+            }
+        }
+
+        // ============= VOICE-TO-TEXT FUNCTIONALITY =============
+        let recognition = null;
+        let isListening = false;
+        let finalTranscript = '';
+
+        // Initialize voice recognition
+        function initVoiceRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+
+                // Configure recognition
+                recognition.continuous = true;  // Keep listening until stopped
+                recognition.interimResults = true;  // Show interim results
+                recognition.maxAlternatives = 1;
+
+                // Set initial language
+                recognition.lang = getVoiceLanguageCode(selectedLanguage);
+
+                recognition.onstart = function () {
+                    console.log('Voice recognition started');
+                    isListening = true;
+                };
+
+                recognition.onresult = function (event) {
+                    let interimTranscript = '';
+
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript + ' ';
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+
+                    // Update textarea with transcribed text
+                    document.getElementById('description').value = finalTranscript + interimTranscript;
+                };
+
+                recognition.onerror = function (event) {
+                    console.error('Speech recognition error:', event.error);
+
+                    if (event.error === 'no-speech') {
+                        alert('⚠️ No speech detected. Please try again.');
+                    } else if (event.error === 'not-allowed') {
+                        alert('❌ Microphone access denied. Please allow microphone access and try again.');
+                    } else {
+                        alert('❌ Voice recognition error: ' + event.error);
+                    }
+
+                    stopVoiceInput();
+                };
+
+                recognition.onend = function () {
+                    console.log('Voice recognition ended');
+                    if (isListening) {
+                        // Auto-restart if still supposed to be listening
+                        try {
+                            recognition.start();
+                        } catch (e) {
+                            stopVoiceInput();
+                        }
+                    }
+                };
+
+                console.log('✅ Voice recognition initialized');
+            } else {
+                console.warn('⚠️ Speech recognition not supported in this browser');
+            }
+        }
+
+        // Get language code for voice recognition
+        function getVoiceLanguageCode(lang) {
+            const codes = {
+                'en': 'en-IN',  // English (India)
+                'hi': 'hi-IN',  // Hindi
+                'mr': 'mr-IN',  // Marathi
+                'ta': 'ta-IN',  // Tamil
+                'te': 'te-IN',  // Telugu
+                'bn': 'bn-IN',  // Bengali
+                'gu': 'gu-IN',  // Gujarati
+                'kn': 'kn-IN',  // Kannada
+                'ml': 'ml-IN',  // Malayalam
+                'pa': 'pa-IN',  // Punjabi
+                'or': 'or-IN',  // Odia
+                'as': 'as-IN',  // Assamese
+                'ur': 'ur-IN'   // Urdu
+            };
+            return codes[lang] || 'en-IN';
+        }
+
+        // Toggle voice input on/off
+        function toggleVoiceInput() {
+            if (!recognition) {
+                alert('❌ Voice input is not supported in your browser.\n\nPlease use Chrome, Edge, or Safari.\n\nYou can still type your complaint normally.');
+                return;
+            }
+
+            if (isListening) {
+                stopVoiceInput();
+            } else {
+                startVoiceInput();
+            }
+        }
+
+        // Start voice input
+        function startVoiceInput() {
+            // Update language if changed
+            recognition.lang = getVoiceLanguageCode(selectedLanguage);
+
+            // Store current text
+            finalTranscript = document.getElementById('description').value;
+            if (finalTranscript && !finalTranscript.endsWith(' ')) {
+                finalTranscript += ' ';
+            }
+
+            try {
+                recognition.start();
+                isListening = true;
+
+                // Update UI
+                document.querySelector('.voice-button').classList.add('listening');
+                document.querySelector('.voice-button').textContent = '⏸️';
+                document.querySelector('.voice-button').title = 'Click to stop recording';
+                document.getElementById('voice-status').classList.add('active');
+
+                console.log('🎤 Started listening in language:', recognition.lang);
+            } catch (e) {
+                console.error('Error starting recognition:', e);
+                alert('❌ Could not start voice recognition. Please try again.');
+            }
+        }
+
+        // Stop voice input
+        function stopVoiceInput() {
+            if (recognition && isListening) {
+                isListening = false;
+
+                try {
+                    recognition.stop();
+                } catch (e) {
+                    console.error('Error stopping recognition:', e);
+                }
+
+                // Update UI
+                document.querySelector('.voice-button').classList.remove('listening');
+                document.querySelector('.voice-button').textContent = '🎤';
+                document.querySelector('.voice-button').title = 'Click to speak your complaint';
+                document.getElementById('voice-status').classList.remove('active');
+
+                console.log('⏹️ Stopped listening');
+            }
+        }
+
+        // Update the existing changeLanguage function to update voice recognition language and translate UI
+        const originalChangeLanguage = changeLanguage;
+        changeLanguage = function () {
+            originalChangeLanguage();
+
+            // Update header title
+            const headerTitles = {
+                en: 'Jan Samadhaan',
+                hi: 'जन समाधान',
+                ta: 'ஜன் சமாதான்',
+                bn: 'জন সমাধান',
+                mr: 'जन समाधान',
+                te: 'జన్ సమాధాన్',
+                gu: 'જન સમાધાન',
+                kn: 'ಜನ ಸಮಾಧಾನ್',
+                ml: 'ജൻ സമാധാൻ',
+                pa: 'ਜਨ ਸਮਾਧਾਨ',
+                or: 'ଜନ ସମାଧାନ',
+                as: 'জন সমাধান',
+                ur: 'جن سمادھان'
+
+            };
+            const h = document.getElementById('header-title');
+            if (h && headerTitles[selectedLanguage]) h.textContent = headerTitles[selectedLanguage];
+
+            // Update Portal Cards (Citizen & Official)
+            const portalTexts = {
+                en: {
+                    cp: '👤 Citizen Portal',
+                    cd: 'File complaints with AI-powered priority assignment, real-time SLA tracking, intelligent department routing, and multilingual support.',
+                    cb: 'CITIZEN LOGIN →',
+                    op: '🏛️ Official Dashboard',
+                    od: 'Access AI-analyzed complaints with map visualization, auto-translation, escalation alerts, and performance analytics.',
+                    ob: 'OFFICIAL LOGIN →'
+                },
+                hi: {
+                    cp: '👤 नागरिक पोर्टल',
+                    cd: 'एआई-संचालित प्राथमिकता असाइनमेंट, रीयल-टाइम एसएलए ट्रैकिंग, बुद्धिमान विभाग रूटिंग और बहुभाषी समर्थन के साथ शिकायत दर्ज करें।',
+                    cb: 'नागरिक लॉगिन →',
+                    op: '🏛️ अधिकारी डैशबोर्ड',
+                    od: 'मानचित्र विज़ुअलाइज़ेशन, ऑटो-अनुवाद, एस्केलेशन अलर्ट और प्रदर्शन विश्लेषण के साथ एआई-विश्लेषित शिकायतों तक पहुंचें।',
+                    ob: 'अधिकारी लॉगिन →'
+                },
+                ta: {
+                    cp: '👤 குடிமக்கள் போர்ட்டல்',
+                    cd: 'AI-இயக்கப்படும் முன்னுரிமை ஒதுக்கீடு, நிகழ்நேர SLA கண்காணிப்பு, அறிவார்ந்த துறை வழிசெலுத்தல் மற்றும் பல்மொழி ஆதரவுடன் புகார்களை பதிவு செய்யவும்.',
+                    cb: 'குடிமக்கள் உள்நுழைவு →',
+                    op: '🏛️ அதிகாரப்பூர்வ டாஷ்போர்டு',
+                    od: 'வரைபட காட்சிப்படுத்தல், தானியங்கு மொழிபெயர்ப்பு, தீவிரமாக்கல் எச்சரிக்கைகள் மற்றும் செயல்திறன் பகுப்பாய்வுகளுடன் AI-பகுப்பாய்வு செய்யப்பட்ட புகார்களை அணுகவும்.',
+                    ob: 'அதிகாரப்பூர்வ உள்நுழைவு →'
+                },
+                bn: {
+                    cp: '👤 নাগরিক পোর্টাল',
+                    cd: 'AI-চালিত অগ্রাধিকার নিয়োগ, রিয়েল-টাইম SLA ট্র্যাকিং, বুদ্ধিমান বিভাগ রাউটিং এবং বহুভাষিক সহায়তা সহ অভিযোগ দাখিল করুন।',
+                    cb: 'নাগরিক লগইন →',
+                    op: '🏛️ অফিসিয়াল ড্যাশবোর্ড',
+                    od: 'ম্যাপ ভিজ্যুয়ালাইজেশন, অটো-অনুবাদ, এস্কেলেশন সতর্কতা এবং পারফরম্যান্স বিশ্লেষণ সহ AI-বিশ্লেষিত অভিযোগগুলি অ্যাক্সেস করুন।',
+                    ob: 'অফিসিয়াল লগইন →'
+                }
+            };
+
+            // Marathi
+            portalTexts.mr = { cp: '👤 नागरिक पोर्टल', cd: 'एआय-सक्षम प्राधान्य असाइनमेंट, रिअल-टाइम एसएलए ट्रॅकिंग, बुद्धिमान विभाग मार्ग आणि बहुभाषिक समर्थनासह तक्रार दाखल करा.', cb: 'नागरिक लॉगिन →', op: '🏛️ अधिकृत डॅशबोर्ड', od: 'नकाशा व्हिज्युअलायझेशन, ऑटो-अनुवाद, एस्केलेशन ॲलर्ट आणि परफॉर्मन्स ॲनालिटिक्ससह एआय-विश्लेषित तक्रारींमध्ये प्रवेश करा.', ob: 'अधिकृत लॉगिन →' };
+
+            // Telugu
+            portalTexts.te = { cp: '👤 పౌర పోర్టల్', cd: 'AI-ఆధారిత ప్రాధాన్యత కేటాయింపు, రియల్-టైమ్ SLA ట్రాకింగ్, మేధో శాఖ రూటింగ్ మరియు బహుభాషా మద్దతుతో ఫిర్యాదులను దాఖలు చేయండి.', cb: 'పౌర లాగిన్ →', op: '🏛️ అధికారిక డాష్‌బోర్డ్', od: 'మ్యాప్ విజువలైజేషన్, ఆటో-ట్రాన్స్‌లేషన్, ఎస్కలేషన్ అలర్ట్‌లు మరియు పనితీరు విశ్లేషణలతో AI-విశ్లేషించిన ఫిర్యాదులను యాక్సెస్ చేయండి.', ob: 'అధికారిక లాగిన్ →' };
+
+            // Gujarati
+            portalTexts.gu = { cp: '👤 નાગરિક પોર્ટલ', cd: 'AI-સંચાલિત પ્રાથમિકતા સોંપણી, રીઅલ-ટાઇમ SLA ટ્રેકિંગ, બુદ્ધિશાળી વિભાગ રૂટીંગ અને બહુભાષી સપોર્ટ સાથે ફરિયાદો નોંધાવો.', cb: 'નાગરિક લૉગિન →', op: '🏛️ અધિકૃત ડેશબોર્ડ', od: 'નકશા વિઝ્યુબલાઇઝેશન, ઓટો-ટ્રાન્સલેશન, એસ્કેલેશન ચેતવણીઓ અને પ્રદર્શન વિશ્લેષણો સાથે AI-વિશ્લેષિત ફરિયાદોને ઍક્સેસ કરો.', ob: 'અધિકૃત લૉગિન →' };
+
+            // Kannada
+            portalTexts.kn = { cp: '👤 ನಾಗರಿಕ ಪೋರ್ಟಲ್', cd: 'AI-ಚಾಲಿತ ಆದ್ಯತೆಯ ನಿಯೋಜನೆ, ನೈಜ-ಸಮಯದ SLA ಟ್ರ್ಯಾಕಿಂಗ್, ಬುದ್ಧಿವಂತ ಇಲಾಖೆ ರೂಟಿಂಗ್ ಮತ್ತು ಬಹುಭಾಷಾ ಬೆಂಬಲದೊಂದಿಗೆ ದೂರುಗಳನ್ನು ಸಲ್ಲಿಸಿ.', cb: 'ನಾಗರಿಕ ಲಾಗಿನ್ →', op: '🏛️ ಅಧಿಕೃತ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್', od: 'ನಕ್ಷೆ ದೃಶ್ಯೀಕರಣ, ಸ್ವಯಂ-ಅನುವಾದ, ಉಲ್ಬಣಗೊಳ್ಳುವ ಎಚ್ಚರಿಕೆಗಳು ಮತ್ತು ಕಾರ್ಯಕ್ಷಮತೆಯ ವಿಶ್ಲೇಷಣೆಗಳೊಂದಿಗೆ AI-ವಿಶ್ಲೇಷಿತ ದೂರುಗಳನ್ನು ಪ್ರವೇಶಿಸಿ.', ob: 'ಅಧಿಕೃತ ಲಾಗಿನ್ →' };
+
+            // Malayalam
+            portalTexts.ml = { cp: '👤 പൗര പോർട്ടൽ', cd: 'AI- പവർ ചെയ്യുന്ന മുൻഗണനാ അസൈൻമെൻ്റ്, തത്സമയ SLA ട്രാക്കിംഗ്, ഇൻ്റലിജൻ്റ് ഡിപ്പാർട്ട്‌മെൻ്റ് റൂട്ടിംഗ്, ബഹുഭാഷാ പിന്തുണ എന്നിവ ഉപയോഗിച്ച് പരാതികൾ ഫയൽ ചെയ്യുക.', cb: 'പൗര ലോഗിൻ →', op: '🏛️ ഔദ്യോഗിക ഡാഷ്‌ബോർഡ്', od: 'മാപ്പ് വിഷ്വലൈസേഷൻ, ഓട്ടോ-വിവർത്തനം, എസ്കലേഷൻ അലേർട്ടുകൾ, പ്രകടന അനലിറ്റിക്‌സ് എന്നിവ ഉപയോഗിച്ച് AI- വിശകലനം ചെയ്ത പരാതികൾ ആക്‌സസ് ചെയ്യുക.', ob: 'ഔദ്യോഗിക ലോഗിൻ →' };
+
+            // Punjabi
+            portalTexts.pa = { cp: '👤 ਨਾਗਰਿਕ ਪੋਰਟਲ', cd: 'AI-ਸੰਚਾਲਿਤ ਤਰਜੀਹੀ ਅਸਾਈਨਮੈਂਟ, ਰੀਅਲ-ਟਾਈਮ SLA ਟਰੈਕਿੰਗ, ਬੁੱਧੀਮਾਨ ਵਿਭਾਗ ਰੂਟਿੰਗ ਅਤੇ ਬਹੁ-ਭਾਸ਼ਾਈ ਸਹਾਇਤਾ ਨਾਲ ਸ਼ਿਕਾਇਤਾਂ ਦਰਜ ਕਰੋ।', cb: 'ਨਾਗਰਿਕ ਲੌਗਇਨ →', op: '🏛️ ਅਧਿਕਾਰਤ ਡੈਸ਼ਬੋਰਡ', od: 'ਨਕਸ਼ੇ ਦੇ ਦ੍ਰਿਸ਼ਟੀਕੋਣ, ਆਟੋ-ਅਨੁਵਾਦ, ਐਸਕੇਲੇਸ਼ਨ ਅਲਰਟ ਅਤੇ ਪ੍ਰਦਰਸ਼ਨ ਵਿਸ਼ਲੇਸ਼ਣ ਦੇ ਨਾਲ AI-ਵਿਸ਼ਲੇਸ਼ਣ ਸ਼ਿਕਾਇਤਾਂ ਤੱਕ ਪਹੁੰਚ ਕਰੋ।', ob: 'ਅਧਿਕਾਰਤ ਲੌਗਇਨ →' };
+
+            // Odia
+            portalTexts.or = { cp: '👤 ନାଗରିକ ପୋର୍ଟାଲ୍', cd: 'AI- ଚାଳିତ ପ୍ରାଥମିକତା ନିଯୁକ୍ତି, ରିଅଲ୍-ଟାଇମ୍ SLA ଟ୍ରାକିଂ, ବୁଦ୍ଧିମାନ ବିଭାଗ ରାଉଟିଙ୍ଗ୍ ଏବଂ ବହୁଭାଷୀ ସମର୍ଥନ ସହିତ ଅଭିଯୋଗ ଦାଖଲ କରନ୍ତୁ |', cb: 'ନାଗରିକ ଲଗଇନ୍ →', op: '🏛️ ଅଫିସିଆଲ୍ ଡ୍ୟାସବୋର୍ଡ', od: 'ମାନଚିତ୍ର ଭିଜୁଆଲାଇଜେସନ୍, ଅଟୋ-ଅନୁବାଦ, ବୃଦ୍ଧି ଚେତାବନୀ ଏବଂ କାର୍ଯ୍ୟଦକ୍ଷତା ବିଶ୍ଳେଷଣ ସହିତ AI- ବିଶ୍ଳେଷିତ ଅଭିଯୋଗଗୁଡିକ ପ୍ରବେଶ କରନ୍ତୁ |', ob: 'ଅଫିସିଆଲ୍ ଲଗଇନ୍ →' };
+
+            // Assamese
+            portalTexts.as = { cp: '👤 নাগৰিক পৰ্টেল', cd: 'AI-চালিত অগ্ৰাধিকাৰ আৱণ্টন, বাস্তৱ-সময়ৰ SLA ট্ৰেকিং, বুদ্ধিমান বিভাগৰ ৰাউটিং আৰু বহুভাষিক সমৰ্থনৰ সৈতে অভিযোগ দাখিল কৰক।', cb: 'নাগৰিক প্ৰৱেশ →', op: '🏛️ চৰকাৰী ডেশ্বব’ৰ্ড', od: 'মানচিত্ৰ দৃশ্যায়ন, স্বয়ংক্ৰিয় অনুবাদ, বৃদ্ধিৰ সতৰ্কবাণী আৰু প্ৰদৰ্শন বিশ্লেষণৰ সৈতে AI-বিশ্লেষিত অভিযোগসমূহ প্ৰৱেশ কৰক।', ob: 'চৰকাৰী প্ৰৱেশ →' };
+
+            // Urdu
+            portalTexts.ur = { cp: '👤 شہری پورٹل', cd: 'AI سے چلنے والی ترجیحی تفویض، ریئل ٹائم SLA ٹریکنگ، ذہین محکمہ روٹنگ، اور کثیر لسانی معاونت کے ساتھ شکایات درج کریں۔', cb: 'شہری لاگ ان →', op: '🏛️ سرکاری ڈیش بورڈ', od: 'نقشہ کے تصور، خودکار ترجمہ، اضافہ کے انتباہات، اور کارکردگی کے تجزیات کے ساتھ AI کے تجزیہ کردہ شکایات تک رسائی حاصل کریں۔', ob: 'سرکاری لاگ ان →' };
+
+            const pt = portalTexts[selectedLanguage] || portalTexts.en;
+            const cards = document.querySelectorAll('.role-card');
+
+            // Update Citizen Card
+            if (cards[0]) {
+                const h3 = cards[0].querySelector('h3');
+                const p = cards[0].querySelector('p');
+                const btn = cards[0].querySelector('.role-button');
+                if (h3) h3.textContent = pt.cp;
+                if (p) p.textContent = pt.cd;
+                if (btn) btn.textContent = pt.cb;
+            }
+
+            // Update Official Card
+            if (cards[1]) {
+                const h3 = cards[1].querySelector('h3');
+                const p = cards[1].querySelector('p');
+                const btn = cards[1].querySelector('.role-button');
+                if (h3) h3.textContent = pt.op;
+                if (p) p.textContent = pt.od;
+                if (btn) btn.textContent = pt.ob;
+            }
+
+            // Update voice recognition language if initialized
+            if (recognition) {
+                recognition.lang = getVoiceLanguageCode(selectedLanguage);
+                console.log('🌐 Voice recognition language updated to:', recognition.lang);
+            }
+
+            // If currently listening, restart with new language
+            if (isListening) {
+                stopVoiceInput();
+                setTimeout(function () {
+                    alert('🎙️ Language changed! Click the microphone to start speaking in ' +
+                        document.getElementById('language-select').options[document.getElementById('language-select').selectedIndex].text);
+                }, 500);
+            }
+        };
+
+        // Initialize voice recognition when page loads
+        window.addEventListener('DOMContentLoaded', function () {
+            initVoiceRecognition();
+
+            // Show voice support status
+            if (recognition) {
+                console.log('✅ Voice input ready! Click the 🎤 button to speak.');
+            } else {
+                console.warn('⚠️ Voice input not available in this browser.');
+            }
+
+            // Add listener to re-check duplicates when category changes
+            const categorySelect = document.getElementById('category');
+            if (categorySelect) {
+                categorySelect.addEventListener('change', function () {
+                    // Re-check duplicates if location is already selected
+                    if (selectedLat && selectedLon) {
+                        checkDuplicateComplaints(selectedLat, selectedLon);
+                    }
+                });
+            }
+        });
+
+        // Stop voice input when form is submitted
+        const originalSubmitComplaint = submitComplaint;
+        submitComplaint = async function () {
+            stopVoiceInput();
+            await originalSubmitComplaint();
+        };
+    </script>
+    </script>
+</body>
+
+</html>

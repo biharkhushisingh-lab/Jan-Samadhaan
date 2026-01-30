@@ -1,0 +1,42 @@
+# Environment Variables (CRITICAL - Contains API Keys and Passwords)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environments
+venv/
+env/
+ENV/
+.venv
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+grievance.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Uploads (may contain sensitive user data)
+uploads/
+*.tmp
+
+# Distribution / Packaging
+build/
+dist/
+*.egg-info/

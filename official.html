@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Govt Official Dashboard | E-Grievance</title>
+
+    <!-- Google Maps API -->
+    <!-- REPLACE 'YOUR_GOOGLE_MAPS_API_KEY' WITH YOUR ACTUAL API KEY -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao&libraries=places&callback=initMap
+"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            margin: 0;
+            background: #f0f2f5;
+            color: #333;
+        }
+
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .dashboard-container {
+            display: none;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .nav-bar {
+            background: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-num {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        table {
+            width: 100%;
+            background: white;
+            border-radius: 10px;
+            border-collapse: collapse;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        th,
+        td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+        }
+
+        .action-btn {
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-resolve {
+            background: linear-gradient(45deg, #11998e, #38ef7d);
+            color: white;
+            box-shadow: 0 4px 10px rgba(56, 239, 125, 0.3);
+        }
+
+        .btn-view {
+            background: #e2e8f0;
+            color: #333;
+            margin-right: 5px;
+        }
+
+        .badge {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .badge-Resolved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-Rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-Forwarded {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .badge-Pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-Escalated {
+            background: #ffcccc;
+            color: #cc0000;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 700px;
+            width: 90%;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s;
+            position: relative;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: #667eea;
+        }
+
+        .close {
+            font-size: 28px;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group select,
+        .form-group textarea,
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: inherit;
+        }
+
+        .file-preview {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px dashed #ccc;
+            margin-bottom: 20px;
+        }
+
+        .file-preview a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding-top: 15px;
+            border-top: 2px solid #f0f0f0;
+            margin-top: 20px;
+        }
+
+        .btn-cancel {
+            background: #eee;
+            color: #333;
+        }
+
+        .btn-submit {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-submit:hover {
+            background: #5a6fd6;
+        }
+
+        .route-highlight {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .route-highlight label {
+            color: #0d47a1;
+            font-weight: bold;
+        }
+
+        /* Map specific styles */
+        .location-section {
+            background: linear-gradient(135deg, #667eea15, #764ba215);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .location-section h4 {
+            margin: 0 0 15px 0;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #complaint-map-container {
+            margin: 15px 0;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        #complaint-map {
+            height: 300px;
+            width: 100%;
+        }
+
+        .location-info {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .location-info p {
+            margin: 5px 0;
+            font-size: 0.9rem;
+        }
+
+        .map-link-btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #00c853;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+
+        .map-link-btn:hover {
+            background: #00a043;
+        }
+
+        .no-location {
+            color: #999;
+            font-style: italic;
+            padding: 15px;
+            text-align: center;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="login-screen" class="login-container">
+        <h2>🏛️ Official Login</h2>
+        <input type="text" id="l-user" class="login-input" placeholder="Username (e.g. admin@gov.in)">
+        <input type="password" id="l-pass" class="login-input" placeholder="Password">
+        <input type="text" id="l-govtid" class="login-input" placeholder="Govt ID">
+        <button onclick="login()" class="login-btn">Secure Login</button>
+        <p onclick="window.location.href='index.html'" style="cursor: pointer; margin-top: 20px; color: #667eea;">← Back
+            to Citizen Portal</p>
+    </div>
+
+    <div id="dashboard" class="dashboard-container">
+        <div class="nav-bar">
+            <h3>E-Grievance | <span id="dept-name" style="color: #667eea;"></span></h3>
+            <button onclick="logout()" class="action-btn btn-view">Logout</button>
+        </div>
+
+        <div class="stat-grid">
+            <div class="stat-card">
+                <p style="margin: 0; color: #777;">Total Complaints</p>
+                <div class="stat-num" id="stat-total">0</div>
+            </div>
+            <div class="stat-card">
+                <p style="margin: 0; color: #777;">SLA Breaches</p>
+                <div class="stat-num" id="stat-sla" style="color: #e74c3c;">0</div>
+            </div>
+            <div class="stat-card">
+                <p style="margin: 0; color: #777;">Avg Rating</p>
+                <div class="stat-num" id="stat-rating" style="color: #ffc107;">0</div>
+            </div>
+            <div class="stat-card">
+                <p style="margin: 0; color: #777;">Avg Resolution</p>
+                <div class="stat-num" id="stat-time" style="color: #28a745;">0h</div>
+            </div>
+        </div>
+
+        <h3>Active Complaints</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tracking ID</th>
+                    <th>Category</th>
+                    <th>Priority</th>
+                    <th>Escalation</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <tr>
+                    <td colspan="6" style="text-align: center;">Loading...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Action Modal -->
+    <div id="action-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📋 Take Action on Complaint</h3>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+
+            <p><strong>Complaint ID:</strong> <code id="modal-cid"></code></p>
+
+            <!-- Location Section with Map -->
+            <div class="location-section" id="location-section">
+                <h4>📍 Complaint Location</h4>
+                <div id="location-display">
+                    <p class="no-location">Loading location data...</p>
+                </div>
+            </div>
+
+            <div class="file-preview" id="citizen-evidence">
+                <span>🔍 Checking for evidence...</span>
+            </div>
+
+            <div class="form-group">
+                <label>Action Type:</label>
+                <select id="action-type" onchange="toggleRouteOption()">
+                    <option value="Resolved">✅ Mark as Resolved</option>
+                    <option value="Rejected">❌ Reject Complaint</option>
+                    <option value="In Progress">🔄 Mark In Progress</option>
+                    <option value="Forwarded">↪️ Forward to Another Dept</option>
+                </select>
+            </div>
+
+            <div class="form-group route-highlight" id="route-group" style="display: none;">
+                <label>🔀 Forward to Department:</label>
+                <select id="route-dept">
+                    <option value="Water_Supply_Dept">💧 Water Supply</option>
+                    <option value="Public_Works_Dept">🛣️ Public Works</option>
+                    <option value="Sanitation_Dept">🗑️ Sanitation</option>
+                    <option value="Health_Dept">🏥 Health</option>
+                    <option value="Power_Dept">⚡ Power</option>
+                    <option value="General_Admin_Dept">📋 General Admin</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Upload Resolution Proof (optional):</label>
+                <input type="file" id="resolution-proof" accept="image/*,application/pdf">
+            </div>
+
+            <div class="form-group">
+                <label>Action Summary / Remarks:</label>
+                <textarea id="resolution-summary" rows="4" placeholder="Describe the action taken..."></textarea>
+            </div>
+
+            <div class="modal-footer">
+                <button class="action-btn btn-view" onclick="closeModal()">Cancel</button>
+                <button class="action-btn btn-submit" onclick="submitAction()">Submit Action</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+        const API = ''; // Use relative path for production
+        let token = localStorage.getItem('officer_token');
+        let currentComplaintId = null;
+        let complaintsData = [];
+        let complaintMap = null;
+        let complaintMarker = null;
+
+        if (token) showDashboard();
+
+        async function login() {
+            const user = document.getElementById('l-user').value;
+            const pass = document.getElementById('l-pass').value;
+            const gid = document.getElementById('l-govtid').value;
+
+            try {
+                const res = await fetch(API + '/api/official/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass, govt_id: gid })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    localStorage.setItem('officer_token', data.token);
+                    localStorage.setItem('officer_dept', data.department);
+                    showDashboard();
+                } else {
+                    alert('Login Failed: ' + data.message);
+                }
+            } catch (e) { alert('Server Error'); }
+        }
+
+        function showDashboard() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('dept-name').textContent = localStorage.getItem('officer_dept');
+            loadData();
+        }
+
+        async function loadData() {
+            const dept = localStorage.getItem('officer_dept');
+
+            // Load Analytics
+            const aRes = await fetch(API + `/api/analytics/dashboard?department=${dept}`);
+            const aData = await aRes.json();
+            if (aData.success) {
+                document.getElementById('stat-total').textContent = aData.analytics.total_complaints;
+                document.getElementById('stat-rating').textContent = aData.analytics.avg_citizen_rating;
+                document.getElementById('stat-time').textContent = aData.analytics.avg_resolution_hours + 'h';
+            }
+
+            // Load Complaints
+            const cRes = await fetch(API + `/api/complaints?department=${dept}`);
+            const cData = await cRes.json();
+
+            if (cData.success) {
+                complaintsData = cData.complaints;
+                const tbody = document.getElementById('table-body');
+                tbody.innerHTML = '';
+
+                let slaCount = 0;
+                cData.complaints.forEach(c => {
+                    if (c.escalation_level !== 'NONE') slaCount++;
+
+                    const badgeClass = `badge-${c.status}`;
+                    const escClass = c.escalation_level === 'CRITICAL' ? 'badge-Escalated' : '';
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${c.id}</td>
+                        <td>${c.category}</td>
+                        <td>P-${c.priority}</td>
+                        <td>${c.escalation_level !== 'NONE' ? `<span class="badge ${escClass}">${c.escalation_level}</span>` : 'Normal'}</td>
+                        <td><span class="badge ${badgeClass}">${c.status}</span></td>
+                        <td>
+                            <button class="action-btn btn-resolve" onclick="openActionModal('${c.id}')">Take Action</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                document.getElementById('stat-sla').textContent = slaCount;
+            }
+        }
+
+        function initComplaintMap(lat, lon) {
+            // Remove existing map if any (handling cleanup)
+            // In Google Maps, we can just re-initialize or set center/zoom on existing instance
+
+            // Create map container if it doesn't exist
+            const locationDisplay = document.getElementById('location-display');
+            locationDisplay.innerHTML = `
+                <div id="complaint-map-container">
+                    <div id="complaint-map"></div>
+                </div>
+                <div class="location-info">
+                    <p><strong>Coordinates:</strong> ${lat.toFixed(6)}, ${lon.toFixed(6)}</p>
+                    <a href="https://www.google.com/maps?q=${lat},${lon}" 
+                       target="_blank" 
+                       class="map-link-btn">
+                        🗺️ Open in Google Maps
+                    </a>
+                </div>
+            `;
+
+            // Initialize map after a short delay to ensure container is ready
+            setTimeout(() => {
+                complaintMap = new google.maps.Map(document.getElementById("complaint-map"), {
+                    center: { lat: lat, lng: lon },
+                    zoom: 15,
+                    mapId: "DEMO_MAP_ID_OFFICIAL"
+                });
+
+                // Add marker
+                complaintMarker = new google.maps.Marker({
+                    position: { lat: lat, lng: lon },
+                    map: complaintMap,
+                    title: "Complaint Location",
+                    animation: google.maps.Animation.DROP
+                });
+
+                const infoWindow = new google.maps.InfoWindow({
+                    content: '<b>Complaint Location</b><br>Click "Open in Google Maps" for directions'
+                });
+                infoWindow.open(complaintMap, complaintMarker);
+            }, 100);
+        }
+
+        function openActionModal(id) {
+            currentComplaintId = id;
+            const complaint = complaintsData.find(c => c.id === id);
+
+            if (!complaint) return;
+
+            document.getElementById('modal-cid').textContent = id;
+
+            // Handle location display
+            const locationDisplay = document.getElementById('location-display');
+            if (complaint.latitude && complaint.longitude) {
+                const lat = parseFloat(complaint.latitude);
+                const lon = parseFloat(complaint.longitude);
+
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    // Show map with location
+                    initComplaintMap(lat, lon);
+                } else {
+                    locationDisplay.innerHTML = '<p class="no-location">Invalid location coordinates</p>';
+                }
+            } else {
+                // No location data
+                locationDisplay.innerHTML = '<p class="no-location">📍 No location data available for this complaint</p>';
+            }
+
+            // Handle evidence
+            const evidenceBox = document.getElementById('citizen-evidence');
+            if (complaint.media_path) {
+                evidenceBox.innerHTML = `
+                    <span style="font-size: 1.5rem;">🔎</span>
+                    <div>
+                        <strong>Attachment Found</strong><br>
+                        <a href="${API}/uploads/${complaint.media_path}" target="_blank">👁️ View Citizen's Upload</a>
+                    </div>
+                `;
+            } else {
+                evidenceBox.innerHTML = `<span>❌ No evidence attached by citizen</span>`;
+            }
+
+            document.getElementById('action-type').value = 'Resolved';
+            document.getElementById('resolution-summary').value = '';
+            document.getElementById('resolution-proof').value = '';
+            toggleRouteOption();
+
+            document.getElementById('action-modal').style.display = 'block';
+        }
+
+        function toggleRouteOption() {
+            const action = document.getElementById('action-type').value;
+            const routeGroup = document.getElementById('route-group');
+            routeGroup.style.display = (action === 'Forwarded') ? 'block' : 'none';
+        }
+
+        function closeModal() {
+            document.getElementById('action-modal').style.display = 'none';
+
+            // Clean up map
+            if (complaintMap) {
+                // Leaflet's remove() is not needed for simple GMap reuse, but we can nullify reference
+                complaintMap = null;
+            }
+        }
+
+        async function submitAction() {
+            const action = document.getElementById('action-type').value;
+            const summary = document.getElementById('resolution-summary').value;
+            const fileInput = document.getElementById('resolution-proof');
+            const routeDept = document.getElementById('route-dept').value;
+
+            if (!summary) {
+                alert("Please enter a summary or remarks.");
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('status', action);
+            fd.append('resolution_summary', summary);
+
+            if (action === 'Forwarded') {
+                fd.append('forward_dept', routeDept);
+                console.log(`🔄 Forwarding complaint ${currentComplaintId} to ${routeDept}`);
+            }
+
+            if (fileInput.files[0]) {
+                fd.append('resolution_proof', fileInput.files[0]);
+            }
+
+            const btn = document.querySelector('.btn-submit');
+            btn.innerHTML = 'Processing...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(API + `/api/complaint/${currentComplaintId}/update`, {
+                    method: 'POST',
+                    body: fd
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    alert(`✅ Complaint marked as ${action}!`);
+                    closeModal();
+                    loadData();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (e) {
+                alert('Server Error');
+                console.error(e);
+            } finally {
+                btn.innerHTML = 'Submit Action';
+                btn.disabled = false;
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        window.onclick = function (event) {
+            const modal = document.getElementById('action-modal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+
+</html>
