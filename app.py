@@ -104,6 +104,12 @@ else:
     print("⚠️  No Gemini API key found. AI features will use fallback logic.")
     print("   Get FREE API key: https://aistudio.google.com/")
 
+# ============= UTILITIES =============
+
+def hash_password(p):
+    """Securely hash passwords using SHA-256"""
+    return hashlib.sha256(p.encode()).hexdigest()
+
 SLA_TIMES = {
     1: 2, 2: 4, 3: 8, 4: 12, 5: 24, 
     6: 48, 7: 72, 8: 96, 9: 120, 10: 168
@@ -413,6 +419,7 @@ def check_duplicate_complaints(lat, lon, category, radius_meters=20):
     """
     try:
         conn = get_db()
+        cursor = get_db_cursor(conn)
         # Get all complaints with location data that are not resolved
         query = '''SELECT id, category, description, latitude, longitude, 
                    created_at, status, citizen_name, priority
@@ -421,7 +428,8 @@ def check_duplicate_complaints(lat, lon, category, radius_meters=20):
                    AND longitude IS NOT NULL 
                    AND status NOT IN ('Resolved', 'Rejected')'''
         
-        complaints = conn.execute(query).fetchall()
+        cursor.execute(format_sql(query))
+        complaints = cursor.fetchall()
         conn.close()
         
         nearby = []
@@ -488,18 +496,20 @@ def validate_otp(phone, otp_code):
     """Validate OTP and mark as used"""
     try:
         conn = get_db()
+        cursor = get_db_cursor(conn)
         now = datetime.now().isoformat()
         
         # Find valid, unused OTP
-        otp = conn.execute('''SELECT * FROM otps 
+        query = format_sql('''SELECT * FROM otps 
                              WHERE phone=? AND otp_code=? AND used=? AND expires_at > ?
-                             ORDER BY created_at DESC LIMIT 1''',
-                          (phone, otp_code, 0 if is_postgres() else 0, now)).fetchone()
+                             ORDER BY created_at DESC LIMIT 1''')
+        cursor.execute(query, (phone, otp_code, 0, now))
+        otp = cursor.fetchone()
         
         if otp:
             # Mark as used
-            conn.execute('UPDATE otps SET used=? WHERE id=?', 
-                        (1 if is_postgres() else 1, otp['id']))
+            upd_q = format_sql('UPDATE otps SET used=? WHERE id=?')
+            cursor.execute(upd_q, (1, otp['id']))
             conn.commit()
             conn.close()
             return True
