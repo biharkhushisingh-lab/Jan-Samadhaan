@@ -1098,6 +1098,40 @@ def db_status():
             "error": str(e)
         }), 500
 
+@app.route('/api/debug/force-seed')
+def force_seed():
+    """Manually trigger database seeding and return results/errors"""
+    results = {}
+    try:
+        from create_admin import create_admin
+        from create_department_officials import create_department_officials
+        
+        results['admin'] = "Attempting..."
+        try:
+            create_admin()
+            results['admin'] = "Success"
+        except Exception as e:
+            results['admin'] = f"Failed: {str(e)}"
+            
+        results['officials'] = "Attempting..."
+        try:
+            create_department_officials()
+            results['officials'] = "Success"
+        except Exception as e:
+            results['officials'] = f"Failed: {str(e)}"
+            
+        return jsonify({
+            "success": True,
+            "results": results,
+            "timestamp": datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "results": results
+        }), 500
+
 @app.route('/api/complaints')
 def get_all_complaints():
     dept = request.args.get('department')
