@@ -569,8 +569,10 @@
                 document.getElementById('stat-time').textContent = aData.analytics.avg_resolution_hours + 'h';
             }
 
-            // Load Complaints
-            const cRes = await fetch(API + `/api/complaints?department=${dept}`);
+            // Load Complaints - Admin sees all, others see only their department
+            const isAdmin = dept === 'General_Admin_Dept';
+            const complaintsUrl = isAdmin ? API + `/api/complaints` : API + `/api/complaints?department=${dept}`;
+            const cRes = await fetch(complaintsUrl);
             const cData = await cRes.json();
 
             if (cData.success) {
