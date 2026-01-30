@@ -1070,18 +1070,18 @@ def db_status():
         cursor = get_db_cursor(conn)
         
         # Check officials count
-        cursor.execute(format_sql("SELECT COUNT(*) as count FROM officials", conn))
-        off_count = cursor.fetchone()
-        count = off_count[0] if isinstance(off_count, (list, tuple)) else off_count['count']
+        cursor.execute(format_sql("SELECT COUNT(*) FROM officials", conn))
+        off_res = cursor.fetchone()
+        count = off_res[0] if off_res else 0
         
         # Check if admin specifically exists
         cursor.execute(format_sql("SELECT username FROM officials WHERE username = ?", conn), ('admin@gov.in',))
         admin_exists = cursor.fetchone() is not None
         
         # Check complaints count
-        cursor.execute(format_sql("SELECT COUNT(*) as count FROM complaints", conn))
+        cursor.execute(format_sql("SELECT COUNT(*) FROM complaints", conn))
         comp_res = cursor.fetchone()
-        comp_count = comp_res[0] if isinstance(comp_res, (list, tuple)) else comp_res['count']
+        comp_count = comp_res[0] if comp_res else 0
         
         conn.close()
         
